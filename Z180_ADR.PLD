@@ -1,0 +1,57 @@
+Name            Z180_ADR;
+Partno          U5;
+Revision        0.1;
+Date            2021-07-10;
+Designer        hal;
+Company         atHome;
+Location        None;
+Assembly        None;
+Device          G22V10;
+
+/*
+ * Inputs: CPU clock, memory and io access signal and addresses
+ */
+Pin 1 = CLK;
+Pin 2 = MREQ;
+Pin 3 = IORQ;
+Pin 4 = RD;
+Pin 5 = WR;
+Pin 6 = A3;
+Pin 7 = A4;
+Pin 8 = A5;
+Pin 9 = A6;
+Pin 10 = A7;
+Pin 11 = A18;
+Pin 13 = A19;
+
+/* Outputs: select register, i/o and memory select
+ * 
+ */
+Pin 23 = SELREG;
+Pin 22 = ROMCE;
+Pin 21 = RAMLCE;
+Pin 20 = RAMHCE;
+Pin 19 = MEMSEL;
+
+/*
+ * Logic
+ */
+
+/* Latch data to 74LS74 based selection register */
+
+SELREG = CLK & !IORQ & !WR & !A3 & A4 & A5 & !A6 & !A7; /* Write to 0x50 - 0x57 latches data */
+
+/* Decode I/O addresses to select EPROM or RAM in lower memory */
+
+ROMSEL = !IORQ & !WR & !A3 & !A4 & A5 & !A6 & !A7; /* Write to 0x40 - 0x47 selects EPROM */
+RAMSEL = !IORQ & !WR & A3 & !A4 & A5 & !A6 & !A7; /* Write to 0x48 - 0x4f selects RAM */
+
+MEMSEL.D = (MEMSEL & !ROMSEL)  # RAMSEL;
+MEMSEL.SP = 'b'0;
+MEMSEL.AR = 'b'0;
+
+/* Decode memory addresses */
+
+RAMHCE = !(!MREQ & A19); /* High 512K RAM */
+RAMLCE = !(!MREQ & !A19 & MEMSEL); /* Low 512K RAM if selected */
+ROMCE = !(!MREQ & !A18 & A19 & !MEMSEL); /* Low 256K EPROM if selected */

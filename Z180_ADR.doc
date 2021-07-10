@@ -1,0 +1,113 @@
+
+*******************************************************************************
+                                   Z180_ADR
+*******************************************************************************
+
+CUPL(WM)        5.0a Serial# 60008009
+Device          g22v10  Library DLIB-h-40-1
+Created         Sat Jul 10 16:49:33 2021
+Name            Z180_ADR
+Partno          U5
+Revision        0.1
+Date            2021-07-10
+Designer        hal
+Company         atHome
+Assembly        None
+Location        None
+
+===============================================================================
+                            Expanded Product Terms
+===============================================================================
+
+MEMSEL.d  =>
+    IORQ & MEMSEL
+  # MEMSEL & WR
+  # A3 & MEMSEL
+  # A4 & MEMSEL
+  # !A5 & MEMSEL
+  # A6 & MEMSEL
+  # A7 & MEMSEL
+  # A3 & !A4 & A5 & !A6 & !A7 & !IORQ & !WR
+
+MEMSEL.ar  =>
+    0 
+
+MEMSEL.sp  =>
+    0 
+
+RAMHCE =>
+    A19 & !MREQ
+
+RAMLCE =>
+    !A19 & MEMSEL & !MREQ
+
+RAMSEL =>
+    A3 & !A4 & A5 & !A6 & !A7 & !IORQ & !WR
+
+ROMCE =>
+    !A18 & A19 & !MEMSEL & !MREQ
+
+ROMSEL =>
+    !A3 & !A4 & A5 & !A6 & !A7 & !IORQ & !WR
+
+SELREG =>
+    !A3 & A4 & A5 & !A6 & !A7 & CLK & !IORQ & !WR
+
+MEMSEL.oe  =>
+    1 
+
+RAMHCE.oe  =>
+    1 
+
+RAMLCE.oe  =>
+    1 
+
+ROMCE.oe  =>
+    1 
+
+SELREG.oe  =>
+    1 
+
+
+===============================================================================
+                                 Symbol Table
+===============================================================================
+
+Pin Variable                                    Pterms   Max     Min    
+Pol   Name              Ext     Pin     Type     Used   Pterms  Level   
+--- --------            ---     ---     ----    ------  ------  -----   
+
+    A3                          6        V        -       -       -     
+    A4                          7        V        -       -       -     
+    A5                          8        V        -       -       -     
+    A6                          9        V        -       -       -     
+    A7                          10       V        -       -       -     
+    A18                         11       V        -       -       -     
+    A19                         13       V        -       -       -     
+    CLK                         1        V        -       -       -     
+    IORQ                        3        V        -       -       -     
+    MEMSEL                      19       V        -       -       -     
+    MEMSEL              d       19       X        8       16      1     
+    MEMSEL              ar      19       X        1       1       1     
+    MEMSEL              sp      19       X        1       1       1     
+    MREQ                        2        V        -       -       -     
+    RAMHCE                      20       V        1       14      1     
+    RAMLCE                      21       V        1       12      1     
+    RAMSEL                      0        I        1       -       -     
+    RD                          4        V        -       -       -     
+    ROMCE                       22       V        1       10      1     
+    ROMSEL                      0        I        1       -       -     
+    SELREG                      23       V        1       8       1     
+    WR                          5        V        -       -       -     
+    MEMSEL              oe      19       D        1       1       0     
+    RAMHCE              oe      20       D        1       1       0     
+    RAMLCE              oe      21       D        1       1       0     
+    ROMCE               oe      22       D        1       1       0     
+    SELREG              oe      23       D        1       1       0     
+
+
+LEGEND    D : default variable         F : field      G : group
+          I : intermediate variable    N : node       M : extended node
+          U : undefined                V : variable   X : extended variable
+          T : function
+
