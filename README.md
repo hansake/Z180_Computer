@@ -11,3 +11,5 @@ A SD Card Adapter is needed as an interface between SPI and the SD cards.
 An ATmega328P (the IC used in Arduino UNO) with SPI or Tx/Rx interfaces to the Z180 is also available.
 The connectors to the ATmega328P are intended to make it possible to use Arduino shields to add
 functionality.
+
+My selection of components is mainly based on what I found in my tucked away boxes.
