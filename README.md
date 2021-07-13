@@ -7,3 +7,5 @@ is switchable between EPROM and RAM.
 The interfaces include two RS-232 ports, two SPI interfaces to use with SD-cards.
 
 An ATmega328P (the IC used in Arduino UNO) with SPI or Tx/Rx interfaces to the Z180 is also available.
+The connectors to the ATmega328P are intended to make it possible to use Arduino shields to add
+functionality.
