@@ -8,8 +8,8 @@ The logic for memory selection is implemented in an ATF22V10 PLD.
 
 The interfaces include two RS-232 ports, two SPI interfaces to use with SD cards.
 A SD Card Adapter is needed as an interface between SPI and the SD cards.
-[How to use the &quot;MicroSD Card Adapter&quot; with the Arduino Uno | Michael Schoeffler](https://mschoeffler.com/2017/02/22/how-to-use-the-microsd-card-adapter-with-the-arduino-uno/).
-[SOLVED. Nrf24 (Mirf lib) + Micro SD-card works OK together - Using Arduino / Storage - Arduino Forum](https://forum.arduino.cc/t/solved-nrf24-mirf-lib-micro-sd-card-works-ok-together/347787/9)
+* [How to use the &quot;MicroSD Card Adapter&quot; with the Arduino Uno | Michael Schoeffler](https://mschoeffler.com/2017/02/22/how-to-use-the-microsd-card-adapter-with-the-arduino-uno/).
+* [SOLVED. Nrf24 (Mirf lib) + Micro SD-card works OK together - Using Arduino / Storage - Arduino Forum](https://forum.arduino.cc/t/solved-nrf24-mirf-lib-micro-sd-card-works-ok-together/347787/9)
 
 An ATmega328P (the IC used in Arduino UNO) with SPI or Tx/Rx interfaces to the Z180 is also available.
 The connectors to the ATmega328P are intended to make it possible to use Arduino shields to add
