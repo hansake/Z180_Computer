@@ -15,4 +15,6 @@ An ATmega328P (the IC used in Arduino UNO) with SPI or Tx/Rx interfaces to the Z
 The connectors to the ATmega328P are intended to make it possible to use Arduino shields to add
 functionality to the Z180 computer.
 
+The ATmega328P Tx and Rx pins may be connected to the Z180 UART 1 Rx and Tx pins, or directly to one of the external RS-232 connector via one of MAX232 converters. 
+
 My selection of components is mainly based on what I found in the component boxes tucked away in my basement.
