@@ -1,0 +1,10 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=winsim
+Comment=PlayOnLinux
+Type=Application
+Exec=/usr/share/playonlinux/playonlinux --run "winsim" %F
+Icon=/home/hal/.PlayOnLinux//icones/full_size/winsim
+Name[fr_FR]=winsim
+StartupWMClass=winsim.exe
+Categories=
