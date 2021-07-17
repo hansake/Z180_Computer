@@ -6,6 +6,9 @@ address range of 1MB. Ths Z180 computer also includes 1MB of RAM memory and 256K
 The lower 256KB physical memory is switchable between EPROM and RAM.
 The logic for memory selection is implemented in an ATF22V10 PLD.
 
+A manual reset connector is available. The design is a bit peculiar as reset is made when the reset switch opens, this is to make use of the
+MCP130 supervisory circuit to create a stable reset when the supply voltage is out of bounds or the reset switch is opened.
+
 The interfaces include two RS-232 ports, two SPI interfaces to use with SD cards.
 A SD Card Adapter is needed as an interface between SPI and the SD cards.
 * [How to use the &quot;MicroSD Card Adapter&quot; with the Arduino Uno | Michael Schoeffler](https://mschoeffler.com/2017/02/22/how-to-use-the-microsd-card-adapter-with-the-arduino-uno/).
