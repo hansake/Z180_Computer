@@ -19,6 +19,8 @@ The connectors to the ATmega328P are intended to make it possible to use Arduino
 functionality to the Z180 computer. In the SPI connection between the Z180 CSI/O interface configured as a SPI master 
 and the ATmega328P configured as a SPI slave.
 
+The ATmega328P has a sepatate reset that is controlled by the Z180.
+
 Using Z180 CSI/O as a SPI master seems possible according to: [SC126, v1.0, Circuit Explained | Small Computer Central](https://smallcomputercentral.wordpress.com/sc126-z180-motherboard-rc2014/sc126-v1-0-circuit-explained/). Using ATmega328P as SPI slave is described in: [Serial peripheral interface in AVR microcontrollers - Embedds](https://embedds.com/serial-peripheral-interface-in-avr-microcontrollers/).
 
 The ATmega328P Tx and Rx pins may be connected to the Z180 ASCI 1 Rx and Tx pins, or directly to one of the external RS-232 connectors via one of the MAX232 converters.
