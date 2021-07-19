@@ -5,6 +5,7 @@ Includes a Z180 CPU which has a simple MMU extending the 64KB lagical address ra
 address range of 1MB. Ths Z180 computer also includes 1MB of RAM memory and 256KB of EPROM memory.
 The lower 256KB physical memory is switchable between EPROM and RAM.
 The logic for memory selection is implemented in an ATF22V10 PLD.
+PLD programmer: [hansake/PLD_programmer: GAL/PLD programmer used to program Atmel ATF22V10 and ATF16V8.](https://github.com/hansake/PLD_programmer).
 
 A manual reset connector is available. The design is a bit peculiar as reset is made when the reset switch opens, this is to make use of the
 MCP130 supervisory circuit to create a stable reset when the supply voltage is out of bounds or the reset switch is opened.
