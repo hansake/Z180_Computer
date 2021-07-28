@@ -56,10 +56,28 @@ JP4
 JP5
 * Connection from Z180 TXS to MOSI on ATmega328P SPI interface
 JP6
-* Connection from bit2 on output port 0x44 to SS on ATmega328P SPI interface
+* Connection from bit 2 on output port 0x44 to SS on ATmega328P SPI interface
 
 PJ3, JP4, JP5, JP6 function
 * All jumpers in place to connect Z180 SPI interface to ATmega328P SPI interface
+
+JP7 EPROM/FLASH jumper
+* Pin 1 connected to +5V
+* Pin 2 connected to pin 31 on U1
+* Pin 3 connected to /WR on Z180
+
+JP7 Function
+* Pin 1 to Pin 2: select EPROM in U1
+* Pin 2 to Pin 3: select FLASH in U1
+
+JP8 ATmega328P reset function
+* Pin 1: connected to RS-232 D-sub channel 1 DSR via RS-232 to logic and a 100nF capacitor
+* Pin 2: connected to ATmega328P /RESET
+* Pin 3: connection from bit 3 on output port 0x44 to control reset from Z180
+
+JP8 Function
+* Pin 1 to Pin 2: reset from DSR on serial channel 1
+* Pin 2 to Pin 3: reset from Z180 by setting bit 3 to "1" on output port 0x44
 
 
 
