@@ -82,8 +82,8 @@ JP8 Function
 ## Output port functions
 
 The function is selected by writing to the specified port (data bits, don't care)
-* Write to port 0x40: select EPROM/FLASH in lower 128KB memory (data bits, don't care)
-* Write to port 0x41: select RAM in lower 128KB memory (data bits, don't care)
+* Write to port 0x40: select EPROM/FLASH in lower 128KB physical memory (data bits, don't care)
+* Write to port 0x41: select RAM in lower 128KB physical memory (data bits, don't care)
 * Write to port 0x42: LED off (data bits, don't care)
 * Write to port 0x43: LED on (data bits, don't care)
 * Write to port 0x44
