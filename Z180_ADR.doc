@@ -5,11 +5,11 @@
 
 CUPL(WM)        5.0a Serial# 60008009
 Device          g22v10  Library DLIB-h-40-1
-Created         Sun Jul 18 18:29:24 2021
+Created         Wed Jul 28 11:57:49 2021
 Name            Z180_ADR
 Partno          U5
-Revision        1.0
-Date            2021-07-18
+Revision        1.1
+Date            2021-07-28
 Designer        hal
 Company         atHome
 Assembly        None
@@ -20,17 +20,20 @@ Location        None
 ===============================================================================
 
 CLKREG =>
-    !A3 & A4 & !A5 & A6 & !A7 & CLK & !IORQ & !WR
+    !A0 & !A1 & A2 & !A3 & !A4 & !A5 & A6 & !A7 & CLK & !IORQ & !WR
 
 LED.d  =>
-    IORQ & LED
-  # LED & WR
-  # A3 & LED
-  # A4 & LED
-  # !A5 & LED
-  # !A6 & LED
-  # A7 & LED
-  # A3 & !A4 & A5 & A6 & !A7 & !IORQ & !WR
+    A0 & A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & RESET & !WR
+  # IORQ & LED & RESET
+  # LED & RESET & WR
+  # A0 & LED & RESET
+  # !A1 & LED & RESET
+  # A2 & LED & RESET
+  # A3 & LED & RESET
+  # A4 & LED & RESET
+  # A5 & LED & RESET
+  # A7 & LED & RESET
+  # !A6 & LED & RESET
 
 LED.ar  =>
     0 
@@ -39,20 +42,23 @@ LED.sp  =>
     0 
 
 LEDOFF =>
-    !A3 & !A4 & A5 & A6 & !A7 & !IORQ & !WR
+    !A0 & A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & !WR
 
 LEDON =>
-    A3 & !A4 & A5 & A6 & !A7 & !IORQ & !WR
+    A0 & A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & !WR
 
 MEMSEL.d  =>
-    IORQ & MEMSEL
-  # MEMSEL & WR
-  # A3 & MEMSEL
-  # A4 & MEMSEL
-  # A5 & MEMSEL
-  # !A6 & MEMSEL
-  # A7 & MEMSEL
-  # A3 & !A4 & !A5 & A6 & !A7 & !IORQ & !WR
+    A0 & !A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & RESET & !WR
+  # IORQ & MEMSEL & RESET
+  # MEMSEL & RESET & WR
+  # A0 & MEMSEL & RESET
+  # A1 & MEMSEL & RESET
+  # A2 & MEMSEL & RESET
+  # A3 & MEMSEL & RESET
+  # A4 & MEMSEL & RESET
+  # A5 & MEMSEL & RESET
+  # A7 & MEMSEL & RESET
+  # !A6 & MEMSEL & RESET
 
 MEMSEL.ar  =>
     0 
@@ -68,13 +74,22 @@ RAMLCE =>
   # !A19 & MEMSEL & !MREQ
 
 RAMSEL =>
-    A3 & !A4 & !A5 & A6 & !A7 & !IORQ & !WR
+    A0 & !A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & !WR
 
 ROMCE =>
     !A18 & !A19 & !MEMSEL & !MREQ
 
 ROMSEL =>
-    !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & !WR
+    !A0 & !A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & !WR
+
+A7.oe  =>
+    0 
+
+A18.oe  =>
+    0 
+
+A19.oe  =>
+    0 
 
 CLKREG.oe  =>
     1 
@@ -91,6 +106,9 @@ RAMHCE.oe  =>
 RAMLCE.oe  =>
     1 
 
+RESET.oe  =>
+    0 
+
 ROMCE.oe  =>
     1 
 
@@ -103,24 +121,27 @@ Pin Variable                                    Pterms   Max     Min
 Pol   Name              Ext     Pin     Type     Used   Pterms  Level   
 --- --------            ---     ---     ----    ------  ------  -----   
 
-    A3                          6        V        -       -       -     
-    A4                          7        V        -       -       -     
-    A5                          8        V        -       -       -     
-    A6                          9        V        -       -       -     
-    A7                          10       V        -       -       -     
-    A18                         11       V        -       -       -     
-    A19                         13       V        -       -       -     
+    A0                          6        V        -       -       -     
+    A1                          7        V        -       -       -     
+    A2                          8        V        -       -       -     
+    A3                          9        V        -       -       -     
+    A4                          10       V        -       -       -     
+    A5                          11       V        -       -       -     
+    A6                          13       V        -       -       -     
+    A7                          15       V        -       -       -     
+    A18                         16       V        -       -       -     
+    A19                         17       V        -       -       -     
     CLK                         1        V        -       -       -     
     CLKREG                      23       V        1       8       1     
     IORQ                        3        V        -       -       -     
-    LED                         14       V        -       -       -     
-    LED                 d       14       X        8       8       1     
-    LED                 ar      14       X        1       1       1     
-    LED                 sp      14       X        1       1       1     
+    LED                         18       V        -       -       -     
+    LED                 d       18       X        11      16      1     
+    LED                 ar      18       X        1       1       1     
+    LED                 sp      18       X        1       1       1     
     LEDOFF                      0        I        1       -       -     
     LEDON                       0        I        1       -       -     
     MEMSEL                      19       V        -       -       -     
-    MEMSEL              d       19       X        8       16      1     
+    MEMSEL              d       19       X        11      16      1     
     MEMSEL              ar      19       X        1       1       1     
     MEMSEL              sp      19       X        1       1       1     
     MREQ                        2        V        -       -       -     
@@ -128,14 +149,19 @@ Pol   Name              Ext     Pin     Type     Used   Pterms  Level
     RAMLCE                      21       V        2       12      1     
     RAMSEL                      0        I        1       -       -     
     RD                          4        V        -       -       -     
+    RESET                       14       V        -       -       -     
     ROMCE                       22       V        1       10      1     
     ROMSEL                      0        I        1       -       -     
     WR                          5        V        -       -       -     
+    A7                  oe      15       D        1       1       0     
+    A18                 oe      16       D        1       1       0     
+    A19                 oe      17       D        1       1       0     
     CLKREG              oe      23       D        1       1       0     
-    LED                 oe      14       D        1       1       0     
+    LED                 oe      18       D        1       1       0     
     MEMSEL              oe      19       D        1       1       0     
     RAMHCE              oe      20       D        1       1       0     
     RAMLCE              oe      21       D        1       1       0     
+    RESET               oe      14       D        1       1       0     
     ROMCE               oe      22       D        1       1       0     
 
 
