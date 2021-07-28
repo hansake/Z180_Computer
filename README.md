@@ -59,7 +59,7 @@ JP6
 * Connection from bit2 on output port 0x44 to SS on ATmega328P SPI interface
 
 PJ3, JP4, JP5, JP6 function
-* All jumpers connected to connect Z180 SPI interface to ATmega328P SPI interface
+* All jumpers in place to connect Z180 SPI interface to ATmega328P SPI interface
 
 
 
