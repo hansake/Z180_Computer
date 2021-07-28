@@ -49,3 +49,17 @@ JP1 & JP2 function
 * Pin 2 to Pin 3: Tx and Rx from Z180 connected to Rx and Tx on ATmega328P
 * Pin 3 to Pin 4: RS-232 D-sub connected to Rx and Tx on ATmega328P
 
+JP3
+* Connection from Z180 CKS to SCK on ATmega328P SPI interface
+JP4
+* Connection from Z180 RXS to MISO on ATmega328P SPI interface
+JP5
+* Connection from Z180 TXS to MOSI on ATmega328P SPI interface
+JP6
+* Connection from bit2 on output port 0x44 to SS on ATmega328P SPI interface
+
+PJ3, JP4, JP5, JP6 function
+* All jumpers connected to connect Z180 SPI interface to ATmega328P SPI interface
+
+
+
