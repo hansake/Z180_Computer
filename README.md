@@ -76,8 +76,20 @@ JP8 ATmega328P reset function
 * Pin 3: connection from bit 3 on output port 0x44 to control reset from Z180
 
 JP8 Function
-* Pin 1 to Pin 2: reset from DSR on serial channel 1
-* Pin 2 to Pin 3: reset from Z180 by setting bit 3 to "1" on output port 0x44
+* Pin 1 to Pin 2: reset of ATmega328P from DSR on serial channel 1
+* Pin 2 to Pin 3: reset of ATmega328P from Z180 by setting bit 3 to "1" on output port 0x44
 
+## Output port functions
+
+The function is selected by writing to the specified port (data bits, don't care)
+* Write to port 0x40: select EPROM/FLASH in lower 128KB memory (data bits, don't care)
+* Write to port 0x41: select RAM in lower 128KB memory (data bits, don't care)
+* Write to port 0x42: LED off (data bits, don't care)
+* Write to port 0x43: LED on (data bits, don't care)
+* Write to port 0x44
+* - data bit 0 set to "1": select SD0 SPI FLASH
+* - data bit 1 set to "1": select SD1 SPI FLASH
+* - data bit 2 set to "1": select ATmega328P SPI interface
+* - data bit 3 set to "1": reset from Z180 to ATmega328P
 
 
