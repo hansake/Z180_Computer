@@ -1,5 +1,5 @@
 # Z180_Computer
-Initial design of Z180 computer. Not tested yet.
+## Initial design of Z180 computer. Not tested yet.
 
 Includes a Z180 CPU which has a simple MMU extending the 64KB lagical address range to a physical
 address range of 1MB. Ths Z180 computer also includes 1MB of RAM memory and 256KB of EPROM memory.
@@ -29,3 +29,23 @@ The ATmega328P Tx and Rx pins may be connected to the Z180 ASCI 1 Rx and Tx pins
 I am planning to program the ATmega328P with [Pocket AVR Programmer Hookup Guide - learn.sparkfun.com](https://learn.sparkfun.com/tutorials/pocket-avr-programmer-hookup-guide?_ga=2.127691909.94672799.1626256475-796128395.1619009331). 
 
 My selection of components is mainly based on what I found in the component boxes tucked away in my basement.
+
+## Jumper configuration
+
+JP1 Tx Jumper
+* Pin 1: Connected to channel 1 Tx D-sub output via RS-232
+* Pin 2: Connected to channel 1 Tx from Z180
+* Pin 3: Connected to Rx input on ATmega328P
+* Pin 4: Connected to channel 1 Rx D-sub input via RS-232
+
+JP2 Rx Jumper
+* Pin 1: Connected to channel 1 Rx D-sub input via RS-232
+* Pin 2: Connected to channel 1 Rx to Z180
+* Pin 3: Connected to Tx output on ATmega328P
+* Pin 4: Connected to channel 1 Tx D-sub output via RS-232
+
+JP1 & JP2 function
+* Pin 1 to Pin 2: Tx and Rx from Z180 connected to RS-232 D-sub
+* Pin 2 to Pin 3: Tx and Rx from Z180 connected to Rx and Tx on ATmega328P
+* Pin 3 to Pin 4: RS-232 D-sub connected to Rx and Tx on ATmega328P
+
