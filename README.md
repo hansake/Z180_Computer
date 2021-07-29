@@ -86,7 +86,7 @@ The function is selected by writing to the specified port (data bits, don't care
 * Write to port 0x41: select RAM in lower 256KB physical memory (data bits, don't care)
 * Write to port 0x42: LED off (data bits, don't care)
 * Write to port 0x43: LED on (data bits, don't care)
-* Write to port 0x44
+* Write to port 0x44:
 * - data bit 0 set to "1": select SD0 SPI FLASH
 * - data bit 1 set to "1": select SD1 SPI FLASH
 * - data bit 2 set to "1": select ATmega328P SPI interface
