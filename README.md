@@ -8,7 +8,7 @@ The logic for memory selection is implemented in an ATF22V10 PLD.
 PLD programmer: [hansake/PLD_programmer: GAL/PLD programmer used to program Atmel ATF22V10 and ATF16V8.](https://github.com/hansake/PLD_programmer).
 
 A manual reset connector is available. The design is a bit peculiar as reset is made when the reset switch opens, this is to make use of the
-MCP130 supervisory circuit to create a stable reset when the supply voltage is out of bounds or the reset switch is opened.
+MCP130 supervisory circuit to create a stable reset when the supply voltage is out of bounds or the reset switch is pressed.
 
 The interfaces include two RS-232 ports, two SPI interfaces to use with SD cards.
 A SD Card Adapter is needed as an interface between SPI and the SD cards.
