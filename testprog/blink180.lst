@@ -3,41 +3,30 @@
 0000			; using, no RAM, no interrupt 
 0000			boot: 
 0000			mloop: 
-0000 21 ff ff			ld hl,0xffff 
+0000 21 ff ff		    ld hl,0xffff 
 0003 3e 01		    ld a,1 
 0005 d3 43		    out(0x43),a ; LED on 
 0007			onloop: 
-0007 01 ff ff		    ld bc,0xffff 
-000a			ionloop: 
-000a 0b			    dec bc 
-000b 78			    ld a,b 
-000c b1			    or c 
-000d c2 0a 00		    jp nz,ionloop 
-0010 2b			    dec hl 
-0011 7c			    ld a,h 
-0012 b5			    or l 
-0013 c2 07 00		    jp nz,onloop 
-0016 21 ff ff			ld hl,0xffff 
-0019 3e 00		    ld a,0 
-001b d3 42		    out(0x42),a ; LED off 
-001d			offloop: 
-001d 01 ff ff		    ld bc,0xffff 
-0020			ioffloop: 
-0020 0b			    dec bc 
-0021 78			    ld a,b 
-0022 b1			    or c 
-0023 c2 20 00		    jp nz,ioffloop 
-0026 2b			    dec hl 
-0027 7c			    ld a,h 
-0028 b5			    or l 
-0029 c2 1d 00		    jp nz,offloop 
-002c c3 00 00		    jp mloop 
-002f			 
-002f			built: 
-002f				include "built180.z80" 
-002f ..			    db ", Built 2021-08-05 13:56" 
+0007 2b			    dec hl 
+0008 7c			    ld a,h 
+0009 b5			    or l 
+000a c2 07 00		    jp nz,onloop 
+000d 21 ff ff		    ld hl,0xffff 
+0010 3e 00		    ld a,0 
+0012 d3 42		    out(0x42),a ; LED off 
+0014			offloop: 
+0014 2b			    dec hl 
+0015 7c			    ld a,h 
+0016 b5			    or l 
+0017 c2 14 00		    jp nz,offloop 
+001a			 
+001a c3 00 00		    jp mloop 
+001d			 
+001d			built: 
+001d			    include "built180.z80" 
+001d ..			    db ", Built 2021-08-08 17:25" 
 # End of file built180.z80
-0047 00				db 0 
-0048			 
+0035 00			    db 0 
+0036			 
 # End of file blink180.z80
-0048
+0036
