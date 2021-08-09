@@ -67,8 +67,8 @@ JP7 EPROM/FLASH jumper
 * Pin 3 connected to /WR on Z180
 
 JP7 Function
-* Pin 1 to Pin 2: select EPROM in U1
-* Pin 2 to Pin 3: select FLASH in U1
+* Pin 1 to Pin 2: select EPROM in U1 (for example M27C2001)
+* Pin 2 to Pin 3: select FLASH in U1 (for example SST39SF020)
 
 JP8 ATmega328P reset function
 * Pin 1: connected to RS-232 D-sub channel 1 DSR via RS-232 to logic and a 100nF capacitor
