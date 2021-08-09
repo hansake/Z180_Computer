@@ -1,0 +1,32 @@
+# File blink180.z80
+0000			; Test program that blinks the LED 
+0000			; using, no RAM, no interrupt 
+0000			boot: 
+0000			mloop: 
+0000 21 ff ff		    ld hl,0xffff 
+0003 3e 01		    ld a,1 
+0005 d3 43		    out(0x43),a ; LED on 
+0007			onloop: 
+0007 2b			    dec hl 
+0008 7c			    ld a,h 
+0009 b5			    or l 
+000a c2 07 00		    jp nz,onloop 
+000d 21 ff ff		    ld hl,0xffff 
+0010 3e 00		    ld a,0 
+0012 d3 42		    out(0x42),a ; LED off 
+0014			offloop: 
+0014 2b			    dec hl 
+0015 7c			    ld a,h 
+0016 b5			    or l 
+0017 c2 14 00		    jp nz,offloop 
+001a			 
+001a c3 00 00		    jp mloop 
+001d			 
+001d			built: 
+001d			    include "built180.z80" 
+001d ..			    db ", Built 2021-08-08 17:25" 
+# End of file built180.z80
+0035 00			    db 0 
+0036			 
+# End of file blink180.z80
+0036
