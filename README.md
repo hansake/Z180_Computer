@@ -1,5 +1,5 @@
 # Z180_Computer
-## Initial design of Z180 computer. Not tested yet.
+## Initial design of Z180 computer.
 
 Includes a Z180 CPU which has a simple MMU extending the 64KB lagical address range to a physical
 address range of 1MB. Ths Z180 computer also includes 1MB of RAM memory and 256KB of EPROM memory.
@@ -92,4 +92,8 @@ The function is selected by writing to the specified port (data bits, don't care
 * - data bit 2 set to "1": select ATmega328P SPI interface
 * - data bit 3 set to "1": reset from Z180 to ATmega328P (if LP8 pin 2 and pin 3 are connected)
 
+## Testing the Z180 computer board
+
+Sofar only some very simple test are run on this board. The AVR CPU is blinking one LED and the Z180 CPU
+is blinking another LED.
 
