@@ -1,7 +1,7 @@
 Name            Z180_ADR;
 Partno          U5;
-Revision        1.1;
-Date            2021-07-28;
+Revision        1.2;
+Date            2021-08-14;
 Designer        hal;
 Company         atHome;
 Location        None;
@@ -45,8 +45,8 @@ Pin 18 = LED;
 
 /* Decode I/O addresses to select EPROM or RAM in lower memory */
 
-ROMSEL = !IORQ & !WR & !A0 & !A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7; /* Write to 0x40 selects EPROM */
-RAMSEL = !IORQ & !WR & A0 & !A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7; /* Write to 0x41 selects RAM */
+ROMSEL = !IORQ & MREQ & !WR & !A0 & !A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7; /* Write to 0x40 selects EPROM */
+RAMSEL = !IORQ & MREQ & !WR & A0 & !A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7; /* Write to 0x41 selects RAM */
 
 MEMSEL.D = ((MEMSEL & !ROMSEL)  # RAMSEL) & RESET;
 MEMSEL.SP = 'b'0;
@@ -54,8 +54,8 @@ MEMSEL.AR = 'b'0;
 
 /* Decode I/O addresses to control LED on/off */
 
-LEDOFF = !IORQ & !WR & !A0 & A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7; /* Write to 0x42 turns LED off */
-LEDON = !IORQ & !WR & A0 & A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7; /* Write to 0x43 turns LED on */
+LEDOFF = !IORQ & MREQ & !WR & !A0 & A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7; /* Write to 0x42 turns LED off */
+LEDON = !IORQ & MREQ & !WR & A0 & A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7; /* Write to 0x43 turns LED on */
 
 LED.D = ((LED & !LEDOFF)  # LEDON) & RESET;
 LED.SP = 'b'0;
@@ -63,16 +63,16 @@ LED.AR = 'b'0;
 
 /* Latch data to 74LS74 based selection register */
 
-CLKREG = CLK & !IORQ & !WR & !A0 & !A1 & A2 & !A3 & !A4 & !A5 & A6 & !A7; /* Write to 0x44 latches data */
+CLKREG = CLK & !IORQ & MREQ & !WR & !A0 & !A1 & A2 & !A3 & !A4 & !A5 & A6 & !A7; /* Write to 0x44 latches data */
 
 /* Decode memory addresses */
 
  /* High 512K RAM */
-RAMHCE = !(!MREQ & A19);
+RAMHCE = !(!MREQ & IORQ & A19);
 
 /* Low 512K all RAM if no EPROM is selected (MEMSEL == 'b'1') */
 /* RAM between 256K and 512K if EPROM is selected (MEMSEL == 'b'0') */
-RAMLCE = !(!MREQ & ((!A19 & MEMSEL) # (A18 & !A19 & !MEMSEL)));
+RAMLCE = !(!MREQ & IORQ & ((!A19 & MEMSEL) # (A18 & !A19 & !MEMSEL)));
 
  /* Low 256K EPROM if selected (MEMSEL == 'b'0'') */
-ROMCE = !(!MREQ & !A18 & !A19 & !MEMSEL);
+ROMCE = !(!MREQ & IORQ & !A18 & !A19 & !MEMSEL);

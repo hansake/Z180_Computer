@@ -5,11 +5,11 @@
 
 CUPL(WM)        5.0a Serial# 60008009
 Device          g22v10  Library DLIB-h-40-1
-Created         Wed Jul 28 11:57:49 2021
+Created         Sat Aug 14 16:41:06 2021
 Name            Z180_ADR
 Partno          U5
-Revision        1.1
-Date            2021-07-28
+Revision        1.2
+Date            2021-08-14
 Designer        hal
 Company         atHome
 Assembly        None
@@ -20,11 +20,12 @@ Location        None
 ===============================================================================
 
 CLKREG =>
-    !A0 & !A1 & A2 & !A3 & !A4 & !A5 & A6 & !A7 & CLK & !IORQ & !WR
+    !A0 & !A1 & A2 & !A3 & !A4 & !A5 & A6 & !A7 & CLK & !IORQ & MREQ & !WR
 
 LED.d  =>
-    A0 & A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & RESET & !WR
+    A0 & A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & MREQ & RESET & !WR
   # IORQ & LED & RESET
+  # LED & !MREQ & RESET
   # LED & RESET & WR
   # A0 & LED & RESET
   # !A1 & LED & RESET
@@ -42,14 +43,15 @@ LED.sp  =>
     0 
 
 LEDOFF =>
-    !A0 & A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & !WR
+    !A0 & A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & MREQ & !WR
 
 LEDON =>
-    A0 & A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & !WR
+    A0 & A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & MREQ & !WR
 
 MEMSEL.d  =>
-    A0 & !A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & RESET & !WR
+    A0 & !A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & MREQ & RESET & !WR
   # IORQ & MEMSEL & RESET
+  # MEMSEL & !MREQ & RESET
   # MEMSEL & RESET & WR
   # A0 & MEMSEL & RESET
   # A1 & MEMSEL & RESET
@@ -67,20 +69,20 @@ MEMSEL.sp  =>
     0 
 
 RAMHCE =>
-    A19 & !MREQ
+    A19 & IORQ & !MREQ
 
 RAMLCE =>
-    A18 & !A19 & !MEMSEL & !MREQ
-  # !A19 & MEMSEL & !MREQ
+    !A19 & IORQ & MEMSEL & !MREQ
+  # A18 & !A19 & IORQ & !MEMSEL & !MREQ
 
 RAMSEL =>
-    A0 & !A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & !WR
+    A0 & !A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & MREQ & !WR
 
 ROMCE =>
-    !A18 & !A19 & !MEMSEL & !MREQ
+    !A18 & !A19 & IORQ & !MEMSEL & !MREQ
 
 ROMSEL =>
-    !A0 & !A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & !WR
+    !A0 & !A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7 & !IORQ & MREQ & !WR
 
 A7.oe  =>
     0 
@@ -135,13 +137,13 @@ Pol   Name              Ext     Pin     Type     Used   Pterms  Level
     CLKREG                      23       V        1       8       1     
     IORQ                        3        V        -       -       -     
     LED                         18       V        -       -       -     
-    LED                 d       18       X        11      16      1     
+    LED                 d       18       X        12      16      1     
     LED                 ar      18       X        1       1       1     
     LED                 sp      18       X        1       1       1     
     LEDOFF                      0        I        1       -       -     
     LEDON                       0        I        1       -       -     
     MEMSEL                      19       V        -       -       -     
-    MEMSEL              d       19       X        11      16      1     
+    MEMSEL              d       19       X        12      16      1     
     MEMSEL              ar      19       X        1       1       1     
     MEMSEL              sp      19       X        1       1       1     
     MREQ                        2        V        -       -       -     
