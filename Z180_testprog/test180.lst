@@ -1,0 +1,220 @@
+# File test180.z80
+0000			; Test program for the Z180 computer 
+0000			; test180.z80 
+0000			; 
+0000			; testing: 
+0000			;   - MMU setup 
+0000			;   - RAM as stack 
+0000			;   - Serial 
+0000			; todo 
+0000			;   - RAM test 
+0000			;   - copy test program to RAM and execute 
+0000			;   - test all RAM using MEMSEL 
+0000			 
+0000			; Internal ports 
+0000			 
+0000			; ASCI Registers port 0 and 1 
+0000			CNTLA0: equ 0x0000  ;ASCI Channel Control Register A 0 
+0000			CNTLA1: equ 0x0001  ;ASCI Channel Control Register A 1 
+0000			CNTLB0: equ 0x0002  ;ASCI Control Register B 0 
+0000			CNTLB1: equ 0x0003  ;ASCI Control Register B 1 
+0000			STAT0:  equ 0x0004  ;ASCI Status Register 0 
+0000			STAT1:  equ 0x0005  ;ASCI Status Register 1 
+0000			TDR0:   equ 0x0006  ;ASCI Transmit Data Register 0 
+0000			TDR1:   equ 0x0007  ;ASCI Transmit Data Register 1 
+0000			RDR0:   equ 0x0008  ;ASCI Receive Data FIFO 0 
+0000			RDR1:   equ 0x0009  ;ASCI Receive Data FIFO 1 
+0000			 
+0000			; MMU Registers 
+0000			CBR:    equ 0x0038  ;MMU Common Base Register 
+0000			BBR:    equ 0x0039  ;MMU Bank Base Register 
+0000			CBAR:   equ 0x003a  ;MMU Common/Bank Area Register 
+0000			 
+0000			; External ports 
+0000			 
+0000			;Select EPROM or RAM on address 0x0000 - 0x3ffff 
+0000			ROMSEL: equ 0x40    ;Write selects EPROM (reset condition) 
+0000			RAMSEL: equ 0x41    ;Write selects RAM 
+0000			 
+0000			;LED on/off 
+0000			LEDOFF: equ 0x42    ;Write turns LED off (reset condition) 
+0000			LEDON:  equ 0x43    ;Write turns LED on 
+0000			 
+0000			;SPI device select and AVR reset 
+0000			CSPORT: equ 0x44    ;Write to bit 0 - 3 (reset condition, all 0) 
+0000			                    ;Bit 0: select SD_CS0 when set to 1 
+0000			                    ;Bit 1: select SD_CS1 when set to 1 
+0000			                    ;Bit 2: select ATSS (AVR) when set to 1 
+0000			                    ;Bit 1: reset AVR when set to 1 
+0000			                    ;       if JP8 pin 2-3 connected 
+0000			 
+0000			 
+0000			boot: 
+0000			 
+0000			init: 
+0000			 
+0000			; Set up the MMU 
+0000			; 
+0000			; Common Bank 0 
+0000			;    logical: 0x0000 - 0xefff 
+0000			;    physical: 0x00000 - 0x0efff 
+0000			; Bank Area, not used in this test (probably?) 
+0000			; Common Bank 1 
+0000			;    logical: 0xf000 - 0xffff 
+0000			;    physical: 0x8f000 - 0x8ffff 
+0000			 
+0000 3e 80		    ld a, 0x80 
+0002 01 38 00		    ld bc, CBR 
+0005 ed 79		    out (c), a 
+0007 3e 00		    ld a, 0x00 
+0009 01 39 00		    ld bc, BBR 
+000c ed 79		    out (c), a 
+000e 3e ff		    ld a, 0xff 
+0010 01 3a 00		    ld bc, CBAR 
+0013 ed 79		    out (c), a 
+0015			 
+0015			; Set up Stack Pointer (first push/call will wrap to 0xffff) 
+0015 31 00 00		    ld sp, 0x0000 
+0018			 
+0018			; Initialize devices 
+0018			; and blink LED 
+0018			 
+0018 06 01		    ld b, 1         ;1 blink, MMU initialized 
+001a cd 6f 00		    call ledblink 
+001d 06 03		    ld b, 3 
+001f cd 8c 00		    call delays 
+0022			 
+0022 cd 46 00		    call asci0init 
+0025 06 02		    ld b, 2         ;2 blinks, ASCI 0 initialized 
+0027 cd 6f 00		    call ledblink 
+002a 06 03		    ld b, 3 
+002c cd 8c 00		    call delays 
+002f			 
+002f 06 03		    ld b, 3 
+0031 cd 6f 00		    call ledblink 
+0034 06 03		    ld b, 3 
+0036 cd 8c 00		    call delays 
+0039			 
+0039 06 04		    ld b, 4 
+003b cd 6f 00		    call ledblink 
+003e 06 03		    ld b, 3 
+0040 cd 8c 00		    call delays 
+0043			 
+0043 c3 a1 00		    jp testloop 
+0046			 
+0046			; ASCI routines 
+0046			 
+0046			; Initialize port 0 
+0046			asci0init: 
+0046 3e 64		    ld a, 01100100b 
+0048			            ; bit 7 = 0: MPE - disabled 
+0048			            ; bit 6 = 1: RE - Rx enabled 
+0048			            ; bit 5 = 1: TE - Tx enabled 
+0048			            ; bit 4 = 0: RTS0 - set to low, RTS active (?) 
+0048			            ; bit 3 = 0: MPBR/EFR - not used 
+0048			            ; bit 2 - 0 = 100 - Start + 8 bit data + 1 stop 
+0048 01 00 00		    ld bc, CNTLA0 
+004b ed 79		    out (c), a 
+004d			 
+004d			    ; set Baudrate: PHI / (PS * DR * SS) = Baud Rate 
+004d			    ; 9216000 Hz / (30 * 16 * 2) = 9600 Baud 
+004d 3e 21		    ld a, 00100001b 
+004f			            ; bit 7 = 0:  MPBT - disabled 
+004f			            ; bit 6 = 0:  MP - disabled 
+004f			            ; bit 5 = 1:  CTS/PS - prescale = 30 (PS as SS2-0 are not 111) 
+004f			            ; bit 4 = 0:  PEO - ignored as no parity configured 
+004f			            ; bit 3 = 0:  DR - Clock factor = 16 
+004f			            ; bit 2 - 0 = 001:  SS2-SS0 - Divide Ratio: 2 
+004f 01 02 00		    ld bc, CNTLB0 
+0052 ed 79		    out (c), a 
+0054			 
+0054 c9			    ret 
+0055			 
+0055			; Output a character on port 0 
+0055			; reg E contains character to output 
+0055			asci0putc: 
+0055 01 04 00		    ld bc, STAT0 
+0058 ed 78		    in a, (c) 
+005a e6 02		    and 00000010b    ;test bit 1 = TDRE: Transmit Data Register Empty 
+005c 28 f7		    jr z, asci0putc  ;not empty yet 
+005e 7b			    ld a, e 
+005f 01 06 00		    ld bc, TDR0 
+0062 ed 79		    out (c), a       ;output character 
+0064 c9			    ret 
+0065			 
+0065			; Output a character string on port 0 
+0065			; reg HL points to string to output 
+0065			; the string is ended by 0 
+0065			asci0pstr: 
+0065 7e			    ld a, (hl) 
+0066 b7			    or a 
+0067 c8			    ret z 
+0068 5e			    ld e, (hl) 
+0069 23			    inc hl 
+006a cd 55 00		    call asci0putc 
+006d 18 f6		    jr asci0pstr 
+006f			 
+006f			; ledblink flashes the LED 
+006f			; number of times in B reg 
+006f			; using reg: a, b, hl 
+006f			ledblink: 
+006f 21 ff ff		    ld hl, 0xffff 
+0072 3e 01		    ld a, 1 
+0074 d3 43		    out(LEDON), a 
+0076			ledonloop: 
+0076 2b			    dec hl 
+0077 7c			    ld a, h 
+0078 b5			    or l 
+0079 c2 76 00		    jp nz, ledonloop 
+007c 21 ff ff		    ld hl, 0xffff 
+007f 3e 00		    ld a, 0 
+0081 d3 42		    out(LEDOFF), a 
+0083			ledoffloop: 
+0083 2b			    dec hl 
+0084 7c			    ld a, h 
+0085 b5			    or l 
+0086 c2 83 00		    jp nz, ledoffloop 
+0089 10 e4		    djnz ledblink 
+008b c9			    ret 
+008c			 
+008c			; delays makes a delay multiplied 
+008c			; by number of times in B reg 
+008c			; using reg: a, b, hl 
+008c			delays: 
+008c 21 ff ff		    ld hl, 0xffff 
+008f			delay1loop: 
+008f 2b			    dec hl 
+0090 7c			    ld a, h 
+0091 b5			    or l 
+0092 c2 8f 00		    jp nz, delay1loop 
+0095 21 ff ff		    ld hl, 0xffff 
+0098			delay2loop: 
+0098 2b			    dec hl 
+0099 7c			    ld a, h 
+009a b5			    or l 
+009b c2 98 00		    jp nz, delay2loop 
+009e 10 ec		    djnz delays 
+00a0 c9			    ret 
+00a1			 
+00a1			; Main test loop 
+00a1			testloop: 
+00a1 06 08		    ld b, 8 
+00a3 cd 6f 00		    call ledblink 
+00a6 06 03		    ld b, 3 
+00a8 cd 8c 00		    call delays 
+00ab			 
+00ab 21 b4 00		    ld hl, built 
+00ae cd 65 00		    call asci0pstr 
+00b1			 
+00b1 c3 a1 00		    jp testloop 
+00b4			 
+00b4			built: 
+00b4 ..			    db "Test program for Z180 computer " 
+00d3			    include "tbuilt180.z80" 
+00d3 ..			    db ", Built 2021-08-17 16:46" 
+# End of file tbuilt180.z80
+00eb .. 0a		    db '\r', '\n' 
+00ed 00			    db 0 
+00ee			 
+# End of file test180.z80
+00ee
