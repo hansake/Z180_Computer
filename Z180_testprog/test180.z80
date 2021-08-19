@@ -4,11 +4,13 @@
 ; testing:
 ;   - MMU setup
 ;   - RAM as stack
-;   - Serial
+;   - Serial output port 0 & 1
+;   - Serial input port 0 & 1
 ; todo
 ;   - RAM test
 ;   - copy test program to RAM and execute
 ;   - test all RAM using MEMSEL
+;   - interupt test
 
 ; Internal ports
 
@@ -56,11 +58,14 @@ init:
 ;
 ; Common Bank 0
 ;    logical: 0x0000 - 0xefff
-;    physical: 0x00000 - 0x0efff
+;    physical: 0x00000 - 0x0efff, EPROM  (or low RAM if enabled)
 ; Bank Area, not used in this test (probably?)
 ; Common Bank 1
 ;    logical: 0xf000 - 0xffff
-;    physical: 0x8f000 - 0x8ffff
+;    physical: 0x8f000 - 0x8ffff, high RAM
+;
+; the inner workings of the MMU is a bit mysterious
+; but this configuration works. TODO investigate further
 
     ld a, 0x80
     ld bc, CBR
@@ -89,12 +94,8 @@ init:
     ld b, 3
     call delays
 
-    ld b, 3
-    call ledblink
-    ld b, 3
-    call delays
-
-    ld b, 4
+    call asci1init
+    ld b, 3         ;3 blinks, ASCI 1 initialized
     call ledblink
     ld b, 3
     call delays
@@ -141,6 +142,21 @@ asci0putc:
     out (c), a       ;output character
     ret
 
+; Input a character from port 0
+; reg E contains the character
+; if E == 0 no character is available
+asci0getc:
+    ld e, 0
+    ld bc, STAT0
+    in a, (c)
+    and 10000000b    ;test bit 7 = RDRF: Recieve data in FIFO
+    ret z            ;empty
+    ld a, e
+    ld bc, RDR0
+    in a, (c)        ;input character
+    ld e, a
+    ret
+
 ; Output a character string on port 0
 ; reg HL points to string to output
 ; the string is ended by 0
@@ -152,6 +168,71 @@ asci0pstr:
     inc hl
     call asci0putc
     jr asci0pstr
+
+; Initialize port 1
+asci1init:
+    ld a, 01100100b
+            ; bit 7 = 0: MPE - disabled
+            ; bit 6 = 1: RE - Rx enabled
+            ; bit 5 = 1: TE - Tx enabled
+            ; bit 4 = 0: RTS0 - set to low, RTS active (?)
+            ; bit 3 = 0: MPBR/EFR - not used
+            ; bit 2 - 0 = 100 - Start + 8 bit data + 1 stop
+    ld bc, CNTLA1
+    out (c), a
+
+    ; set Baudrate: PHI / (PS * DR * SS) = Baud Rate
+    ; 9216000 Hz / (30 * 16 * 2) = 9600 Baud
+    ld a, 00100001b
+            ; bit 7 = 0:  MPBT - disabled
+            ; bit 6 = 0:  MP - disabled
+            ; bit 5 = 1:  CTS/PS - prescale = 30 (PS as SS2-0 are not 111)
+            ; bit 4 = 0:  PEO - ignored as no parity configured
+            ; bit 3 = 0:  DR - Clock factor = 16
+            ; bit 2 - 0 = 001:  SS2-SS0 - Divide Ratio: 2
+    ld bc, CNTLB1
+    out (c), a
+
+    ret
+
+; Output a character on port 1
+; reg E contains character to output
+asci1putc:
+    ld bc, STAT1
+    in a, (c)
+    and 00000010b    ;test bit 1 = TDRE: Transmit Data Register Empty
+    jr z, asci1putc  ;not empty yet
+    ld a, e
+    ld bc, TDR1
+    out (c), a       ;output character
+    ret
+
+; Input a character from port 1
+; reg E contains the character
+; if E == 0 no character is available
+asci1getc:
+    ld e, 0
+    ld bc, STAT1
+    in a, (c)
+    and 10000000b    ;test bit 7 = RDRF: Recieve data in FIFO
+    ret z            ;empty
+    ld a, e
+    ld bc, RDR1
+    in a, (c)        ;input character
+    ld e, a
+    ret
+
+; Output a character string on port 1
+; reg HL points to string to output
+; the string is ended by 0
+asci1pstr:
+    ld a, (hl)
+    or a
+    ret z
+    ld e, (hl)
+    inc hl
+    call asci1putc
+    jr asci1pstr
 
 ; ledblink flashes the LED
 ; number of times in B reg
@@ -197,19 +278,54 @@ delay2loop:
 
 ; Main test loop
 testloop:
-    ld b, 8
+    ld b, 5
     call ledblink
-    ld b, 3
+    ld b, 2
     call delays
 
+    ld hl, asci0txt
+    call asci0pstr
     ld hl, built
     call asci0pstr
+    call asci0getc
+    ld a, e
+    or a
+    jp z, asci0noin
+    call asci0putc
+    ld hl, inptxt
+    call asci0pstr
+asci0noin:
+
+    ld hl, asci1txt
+    call asci1pstr
+    ld hl, built
+    call asci1pstr
+    call asci1getc
+    ld a, e
+    or a
+    jp z, asci1noin
+    call asci1putc
+    ld hl, inptxt
+    call asci1pstr
+asci1noin:
 
     jp testloop
 
+asci0txt:
+    db "ASCI port 0 - "
+    db 0
+asci1txt:
+    db "ASCI port 1 - "
+    db 0
+
 built:
-    db "Test program for Z180 computer "
+    db "Test program for Z180 computer"
     include "tbuilt180.z80"
+    db '\r', '\n'
+    db 0
+
+inptxt:
+    db " <- was recieved"
     db '\r', '\n'
     db 0
 

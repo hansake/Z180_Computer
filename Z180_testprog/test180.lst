@@ -5,11 +5,13 @@
 0000			; testing: 
 0000			;   - MMU setup 
 0000			;   - RAM as stack 
-0000			;   - Serial 
+0000			;   - Serial output port 0 & 1 
+0000			;   - Serial input port 0 & 1 
 0000			; todo 
 0000			;   - RAM test 
 0000			;   - copy test program to RAM and execute 
 0000			;   - test all RAM using MEMSEL 
+0000			;   - interupt test 
 0000			 
 0000			; Internal ports 
 0000			 
@@ -57,11 +59,14 @@
 0000			; 
 0000			; Common Bank 0 
 0000			;    logical: 0x0000 - 0xefff 
-0000			;    physical: 0x00000 - 0x0efff 
+0000			;    physical: 0x00000 - 0x0efff, EPROM  (or low RAM if enabled) 
 0000			; Bank Area, not used in this test (probably?) 
 0000			; Common Bank 1 
 0000			;    logical: 0xf000 - 0xffff 
-0000			;    physical: 0x8f000 - 0x8ffff 
+0000			;    physical: 0x8f000 - 0x8ffff, high RAM 
+0000			; 
+0000			; the inner workings of the MMU is a bit mysterious 
+0000			; but this configuration works. TODO investigate further 
 0000			 
 0000 3e 80		    ld a, 0x80 
 0002 01 38 00		    ld bc, CBR 
@@ -80,141 +85,252 @@
 0018			; and blink LED 
 0018			 
 0018 06 01		    ld b, 1         ;1 blink, MMU initialized 
-001a cd 6f 00		    call ledblink 
+001a cd b5 00		    call ledblink 
 001d 06 03		    ld b, 3 
-001f cd 8c 00		    call delays 
+001f cd d2 00		    call delays 
 0022			 
-0022 cd 46 00		    call asci0init 
+0022 cd 3f 00		    call asci0init 
 0025 06 02		    ld b, 2         ;2 blinks, ASCI 0 initialized 
-0027 cd 6f 00		    call ledblink 
+0027 cd b5 00		    call ledblink 
 002a 06 03		    ld b, 3 
-002c cd 8c 00		    call delays 
+002c cd d2 00		    call delays 
 002f			 
-002f 06 03		    ld b, 3 
-0031 cd 6f 00		    call ledblink 
-0034 06 03		    ld b, 3 
-0036 cd 8c 00		    call delays 
-0039			 
-0039 06 04		    ld b, 4 
-003b cd 6f 00		    call ledblink 
-003e 06 03		    ld b, 3 
-0040 cd 8c 00		    call delays 
-0043			 
-0043 c3 a1 00		    jp testloop 
+002f cd 7a 00		    call asci1init 
+0032 06 03		    ld b, 3         ;3 blinks, ASCI 1 initialized 
+0034 cd b5 00		    call ledblink 
+0037 06 03		    ld b, 3 
+0039 cd d2 00		    call delays 
+003c			 
+003c c3 e7 00		    jp testloop 
+003f			 
+003f			; ASCI routines 
+003f			 
+003f			; Initialize port 0 
+003f			asci0init: 
+003f 3e 64		    ld a, 01100100b 
+0041			            ; bit 7 = 0: MPE - disabled 
+0041			            ; bit 6 = 1: RE - Rx enabled 
+0041			            ; bit 5 = 1: TE - Tx enabled 
+0041			            ; bit 4 = 0: RTS0 - set to low, RTS active (?) 
+0041			            ; bit 3 = 0: MPBR/EFR - not used 
+0041			            ; bit 2 - 0 = 100 - Start + 8 bit data + 1 stop 
+0041 01 00 00		    ld bc, CNTLA0 
+0044 ed 79		    out (c), a 
 0046			 
-0046			; ASCI routines 
-0046			 
-0046			; Initialize port 0 
-0046			asci0init: 
-0046 3e 64		    ld a, 01100100b 
-0048			            ; bit 7 = 0: MPE - disabled 
-0048			            ; bit 6 = 1: RE - Rx enabled 
-0048			            ; bit 5 = 1: TE - Tx enabled 
-0048			            ; bit 4 = 0: RTS0 - set to low, RTS active (?) 
-0048			            ; bit 3 = 0: MPBR/EFR - not used 
-0048			            ; bit 2 - 0 = 100 - Start + 8 bit data + 1 stop 
-0048 01 00 00		    ld bc, CNTLA0 
+0046			    ; set Baudrate: PHI / (PS * DR * SS) = Baud Rate 
+0046			    ; 9216000 Hz / (30 * 16 * 2) = 9600 Baud 
+0046 3e 21		    ld a, 00100001b 
+0048			            ; bit 7 = 0:  MPBT - disabled 
+0048			            ; bit 6 = 0:  MP - disabled 
+0048			            ; bit 5 = 1:  CTS/PS - prescale = 30 (PS as SS2-0 are not 111) 
+0048			            ; bit 4 = 0:  PEO - ignored as no parity configured 
+0048			            ; bit 3 = 0:  DR - Clock factor = 16 
+0048			            ; bit 2 - 0 = 001:  SS2-SS0 - Divide Ratio: 2 
+0048 01 02 00		    ld bc, CNTLB0 
 004b ed 79		    out (c), a 
 004d			 
-004d			    ; set Baudrate: PHI / (PS * DR * SS) = Baud Rate 
-004d			    ; 9216000 Hz / (30 * 16 * 2) = 9600 Baud 
-004d 3e 21		    ld a, 00100001b 
-004f			            ; bit 7 = 0:  MPBT - disabled 
-004f			            ; bit 6 = 0:  MP - disabled 
-004f			            ; bit 5 = 1:  CTS/PS - prescale = 30 (PS as SS2-0 are not 111) 
-004f			            ; bit 4 = 0:  PEO - ignored as no parity configured 
-004f			            ; bit 3 = 0:  DR - Clock factor = 16 
-004f			            ; bit 2 - 0 = 001:  SS2-SS0 - Divide Ratio: 2 
-004f 01 02 00		    ld bc, CNTLB0 
-0052 ed 79		    out (c), a 
-0054			 
-0054 c9			    ret 
-0055			 
-0055			; Output a character on port 0 
-0055			; reg E contains character to output 
-0055			asci0putc: 
-0055 01 04 00		    ld bc, STAT0 
-0058 ed 78		    in a, (c) 
-005a e6 02		    and 00000010b    ;test bit 1 = TDRE: Transmit Data Register Empty 
-005c 28 f7		    jr z, asci0putc  ;not empty yet 
-005e 7b			    ld a, e 
-005f 01 06 00		    ld bc, TDR0 
-0062 ed 79		    out (c), a       ;output character 
-0064 c9			    ret 
-0065			 
-0065			; Output a character string on port 0 
-0065			; reg HL points to string to output 
-0065			; the string is ended by 0 
-0065			asci0pstr: 
-0065 7e			    ld a, (hl) 
-0066 b7			    or a 
-0067 c8			    ret z 
-0068 5e			    ld e, (hl) 
-0069 23			    inc hl 
-006a cd 55 00		    call asci0putc 
-006d 18 f6		    jr asci0pstr 
-006f			 
-006f			; ledblink flashes the LED 
-006f			; number of times in B reg 
-006f			; using reg: a, b, hl 
-006f			ledblink: 
-006f 21 ff ff		    ld hl, 0xffff 
-0072 3e 01		    ld a, 1 
-0074 d3 43		    out(LEDON), a 
-0076			ledonloop: 
-0076 2b			    dec hl 
-0077 7c			    ld a, h 
-0078 b5			    or l 
-0079 c2 76 00		    jp nz, ledonloop 
-007c 21 ff ff		    ld hl, 0xffff 
-007f 3e 00		    ld a, 0 
-0081 d3 42		    out(LEDOFF), a 
-0083			ledoffloop: 
-0083 2b			    dec hl 
-0084 7c			    ld a, h 
-0085 b5			    or l 
-0086 c2 83 00		    jp nz, ledoffloop 
-0089 10 e4		    djnz ledblink 
-008b c9			    ret 
-008c			 
-008c			; delays makes a delay multiplied 
-008c			; by number of times in B reg 
-008c			; using reg: a, b, hl 
-008c			delays: 
-008c 21 ff ff		    ld hl, 0xffff 
-008f			delay1loop: 
-008f 2b			    dec hl 
-0090 7c			    ld a, h 
-0091 b5			    or l 
-0092 c2 8f 00		    jp nz, delay1loop 
-0095 21 ff ff		    ld hl, 0xffff 
-0098			delay2loop: 
-0098 2b			    dec hl 
-0099 7c			    ld a, h 
-009a b5			    or l 
-009b c2 98 00		    jp nz, delay2loop 
-009e 10 ec		    djnz delays 
-00a0 c9			    ret 
-00a1			 
-00a1			; Main test loop 
-00a1			testloop: 
-00a1 06 08		    ld b, 8 
-00a3 cd 6f 00		    call ledblink 
-00a6 06 03		    ld b, 3 
-00a8 cd 8c 00		    call delays 
+004d c9			    ret 
+004e			 
+004e			; Output a character on port 0 
+004e			; reg E contains character to output 
+004e			asci0putc: 
+004e 01 04 00		    ld bc, STAT0 
+0051 ed 78		    in a, (c) 
+0053 e6 02		    and 00000010b    ;test bit 1 = TDRE: Transmit Data Register Empty 
+0055 28 f7		    jr z, asci0putc  ;not empty yet 
+0057 7b			    ld a, e 
+0058 01 06 00		    ld bc, TDR0 
+005b ed 79		    out (c), a       ;output character 
+005d c9			    ret 
+005e			 
+005e			; Input a character from port 0 
+005e			; reg E contains the character 
+005e			; if E == 0 no character is available 
+005e			asci0getc: 
+005e 1e 00		    ld e, 0 
+0060 01 04 00		    ld bc, STAT0 
+0063 ed 78		    in a, (c) 
+0065 e6 80		    and 10000000b    ;test bit 7 = RDRF: Recieve data in FIFO 
+0067 c8			    ret z            ;empty 
+0068 7b			    ld a, e 
+0069 01 08 00		    ld bc, RDR0 
+006c ed 78		    in a, (c)        ;input character 
+006e 5f			    ld e, a 
+006f c9			    ret 
+0070			 
+0070			; Output a character string on port 0 
+0070			; reg HL points to string to output 
+0070			; the string is ended by 0 
+0070			asci0pstr: 
+0070 7e			    ld a, (hl) 
+0071 b7			    or a 
+0072 c8			    ret z 
+0073 5e			    ld e, (hl) 
+0074 23			    inc hl 
+0075 cd 4e 00		    call asci0putc 
+0078 18 f6		    jr asci0pstr 
+007a			 
+007a			; Initialize port 1 
+007a			asci1init: 
+007a 3e 64		    ld a, 01100100b 
+007c			            ; bit 7 = 0: MPE - disabled 
+007c			            ; bit 6 = 1: RE - Rx enabled 
+007c			            ; bit 5 = 1: TE - Tx enabled 
+007c			            ; bit 4 = 0: RTS0 - set to low, RTS active (?) 
+007c			            ; bit 3 = 0: MPBR/EFR - not used 
+007c			            ; bit 2 - 0 = 100 - Start + 8 bit data + 1 stop 
+007c 01 01 00		    ld bc, CNTLA1 
+007f ed 79		    out (c), a 
+0081			 
+0081			    ; set Baudrate: PHI / (PS * DR * SS) = Baud Rate 
+0081			    ; 9216000 Hz / (30 * 16 * 2) = 9600 Baud 
+0081 3e 21		    ld a, 00100001b 
+0083			            ; bit 7 = 0:  MPBT - disabled 
+0083			            ; bit 6 = 0:  MP - disabled 
+0083			            ; bit 5 = 1:  CTS/PS - prescale = 30 (PS as SS2-0 are not 111) 
+0083			            ; bit 4 = 0:  PEO - ignored as no parity configured 
+0083			            ; bit 3 = 0:  DR - Clock factor = 16 
+0083			            ; bit 2 - 0 = 001:  SS2-SS0 - Divide Ratio: 2 
+0083 01 03 00		    ld bc, CNTLB1 
+0086 ed 79		    out (c), a 
+0088			 
+0088 c9			    ret 
+0089			 
+0089			; Output a character on port 1 
+0089			; reg E contains character to output 
+0089			asci1putc: 
+0089 01 05 00		    ld bc, STAT1 
+008c ed 78		    in a, (c) 
+008e e6 02		    and 00000010b    ;test bit 1 = TDRE: Transmit Data Register Empty 
+0090 28 f7		    jr z, asci1putc  ;not empty yet 
+0092 7b			    ld a, e 
+0093 01 07 00		    ld bc, TDR1 
+0096 ed 79		    out (c), a       ;output character 
+0098 c9			    ret 
+0099			 
+0099			; Input a character from port 1 
+0099			; reg E contains the character 
+0099			; if E == 0 no character is available 
+0099			asci1getc: 
+0099 1e 00		    ld e, 0 
+009b 01 05 00		    ld bc, STAT1 
+009e ed 78		    in a, (c) 
+00a0 e6 80		    and 10000000b    ;test bit 7 = RDRF: Recieve data in FIFO 
+00a2 c8			    ret z            ;empty 
+00a3 7b			    ld a, e 
+00a4 01 09 00		    ld bc, RDR1 
+00a7 ed 78		    in a, (c)        ;input character 
+00a9 5f			    ld e, a 
+00aa c9			    ret 
 00ab			 
-00ab 21 b4 00		    ld hl, built 
-00ae cd 65 00		    call asci0pstr 
-00b1			 
-00b1 c3 a1 00		    jp testloop 
-00b4			 
-00b4			built: 
-00b4 ..			    db "Test program for Z180 computer " 
-00d3			    include "tbuilt180.z80" 
-00d3 ..			    db ", Built 2021-08-17 16:46" 
+00ab			; Output a character string on port 1 
+00ab			; reg HL points to string to output 
+00ab			; the string is ended by 0 
+00ab			asci1pstr: 
+00ab 7e			    ld a, (hl) 
+00ac b7			    or a 
+00ad c8			    ret z 
+00ae 5e			    ld e, (hl) 
+00af 23			    inc hl 
+00b0 cd 89 00		    call asci1putc 
+00b3 18 f6		    jr asci1pstr 
+00b5			 
+00b5			; ledblink flashes the LED 
+00b5			; number of times in B reg 
+00b5			; using reg: a, b, hl 
+00b5			ledblink: 
+00b5 21 ff ff		    ld hl, 0xffff 
+00b8 3e 01		    ld a, 1 
+00ba d3 43		    out(LEDON), a 
+00bc			ledonloop: 
+00bc 2b			    dec hl 
+00bd 7c			    ld a, h 
+00be b5			    or l 
+00bf c2 bc 00		    jp nz, ledonloop 
+00c2 21 ff ff		    ld hl, 0xffff 
+00c5 3e 00		    ld a, 0 
+00c7 d3 42		    out(LEDOFF), a 
+00c9			ledoffloop: 
+00c9 2b			    dec hl 
+00ca 7c			    ld a, h 
+00cb b5			    or l 
+00cc c2 c9 00		    jp nz, ledoffloop 
+00cf 10 e4		    djnz ledblink 
+00d1 c9			    ret 
+00d2			 
+00d2			; delays makes a delay multiplied 
+00d2			; by number of times in B reg 
+00d2			; using reg: a, b, hl 
+00d2			delays: 
+00d2 21 ff ff		    ld hl, 0xffff 
+00d5			delay1loop: 
+00d5 2b			    dec hl 
+00d6 7c			    ld a, h 
+00d7 b5			    or l 
+00d8 c2 d5 00		    jp nz, delay1loop 
+00db 21 ff ff		    ld hl, 0xffff 
+00de			delay2loop: 
+00de 2b			    dec hl 
+00df 7c			    ld a, h 
+00e0 b5			    or l 
+00e1 c2 de 00		    jp nz, delay2loop 
+00e4 10 ec		    djnz delays 
+00e6 c9			    ret 
+00e7			 
+00e7			; Main test loop 
+00e7			testloop: 
+00e7 06 05		    ld b, 5 
+00e9 cd b5 00		    call ledblink 
+00ec 06 02		    ld b, 2 
+00ee cd d2 00		    call delays 
+00f1			 
+00f1 21 2e 01		    ld hl, asci0txt 
+00f4 cd 70 00		    call asci0pstr 
+00f7 21 4c 01		    ld hl, built 
+00fa cd 70 00		    call asci0pstr 
+00fd cd 5e 00		    call asci0getc 
+0100 7b			    ld a, e 
+0101 b7			    or a 
+0102 ca 0e 01		    jp z, asci0noin 
+0105 cd 4e 00		    call asci0putc 
+0108 21 85 01		    ld hl, inptxt 
+010b cd 70 00		    call asci0pstr 
+010e			asci0noin: 
+010e			 
+010e 21 3d 01		    ld hl, asci1txt 
+0111 cd ab 00		    call asci1pstr 
+0114 21 4c 01		    ld hl, built 
+0117 cd ab 00		    call asci1pstr 
+011a cd 99 00		    call asci1getc 
+011d 7b			    ld a, e 
+011e b7			    or a 
+011f ca 2b 01		    jp z, asci1noin 
+0122 cd 89 00		    call asci1putc 
+0125 21 85 01		    ld hl, inptxt 
+0128 cd ab 00		    call asci1pstr 
+012b			asci1noin: 
+012b			 
+012b c3 e7 00		    jp testloop 
+012e			 
+012e			asci0txt: 
+012e ..			    db "ASCI port 0 - " 
+013c 00			    db 0 
+013d			asci1txt: 
+013d ..			    db "ASCI port 1 - " 
+014b 00			    db 0 
+014c			 
+014c			built: 
+014c ..			    db "Test program for Z180 computer" 
+016a			    include "tbuilt180.z80" 
+016a ..			    db ", Built 2021-08-18 18:43" 
 # End of file tbuilt180.z80
-00eb .. 0a		    db '\r', '\n' 
-00ed 00			    db 0 
-00ee			 
+0182 .. 0a		    db '\r', '\n' 
+0184 00			    db 0 
+0185			 
+0185			inptxt: 
+0185 ..			    db " <- was recieved" 
+0195 .. 0a		    db '\r', '\n' 
+0197 00			    db 0 
+0198			 
 # End of file test180.z80
-00ee
+0198
