@@ -94,6 +94,8 @@ The function is selected by writing to the specified port (data bits, don't care
 
 ## Testing the Z180 computer board
 
-Sofar only some very simple test are run on this board. The AVR CPU is blinking one LED and the Z180 CPU
-is blinking another LED.
+Sofar only some very simple test are run on this board. The AVR CPU is blinking one LED and outputs
+text on the serial port.
 
+The Z180 CPU is blinking another LED and outputs text on serial port 0 and 1. The test program also recieves
+any character input on the serial ports.
