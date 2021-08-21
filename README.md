@@ -1,5 +1,5 @@
 # Z180_Computer
-## Initial design of Z180 computer.
+## Design of a Z180 computer.
 
 Includes a Z180 CPU which has a simple MMU extending the 64KB lagical address range to a physical
 address range of 1MB. Ths Z180 computer also includes 1MB of RAM memory and 256KB of EPROM memory.
