@@ -2,13 +2,16 @@
 ; test180.z80
 ;
 ; testing:
-;   - MMU setup
+;   - simple MMU setup
 ;   - RAM as stack
 ;   - Serial output port 0 & 1
 ;   - Serial input port 0 & 1
-; todo
-;   - RAM test
+;   - MMU setup with Common Bank 0, Bank Area, Common Bank 1
+;   - simple RAM test
 ;   - copy test program to RAM and execute
+;   - switch to low RAM using MEMSEL
+;   - test 74LS74 select outputs
+; todo
 ;   - test all RAM using MEMSEL
 ;   - interupt test
 
@@ -56,26 +59,54 @@ init:
 
 ; Set up the MMU
 ;
-; Common Bank 0
-;    logical: 0x0000 - 0xefff
-;    physical: 0x00000 - 0x0efff, EPROM  (or low RAM if enabled)
-; Bank Area, not used in this test (probably?)
-; Common Bank 1
+; Common Bank 0, 4KB
+;    logical: 0x0000 - 0x0fff
+;    physical: 0x00000 - 0x00fff, EPROM or start of low RAM if enabled
+; Bank Area, 56KB
+;    logical: 0x1000 - 0xefff
+;    physical: 0x41000 - 0x4efff, low RAM chip above EPROM
+; Common Bank 1, 4KB
 ;    logical: 0xf000 - 0xffff
-;    physical: 0x8f000 - 0x8ffff, high RAM
+;    physical: 0xff000 - 0xfffff, end of high RAM chip
 ;
-; the inner workings of the MMU is a bit mysterious
-; but this configuration works. TODO investigate further
+; The MMU function is a bit mysterious but I learned that CBAR
+; must be configured before CBR and BBR otherwise strange
+; things will happen.
 
-    ld a, 0x80
-    ld bc, CBR
-    out (c), a
-    ld a, 0x00
-    ld bc, BBR
-    out (c), a
-    ld a, 0xff
+    ld a, 0xf1   ;<CA><BA>
     ld bc, CBAR
     out (c), a
+    ld a, 0xf0
+    ld bc, CBR
+    out (c), a
+    ld a, 0x40
+    ld bc, BBR
+    out (c), a
+
+HIRAM: equ 0xf000
+
+; copy the program to high RAM
+    ld bc,prgend - prgstart
+    ld hl,prgineprom
+    ld de,HIRAM
+cploop:
+    ld a,b
+    or c
+    jp z,cpend
+    ld a,(hl)
+    inc hl
+    ld (de),a
+    inc de
+    dec bc
+    jp cploop
+cpend:
+    jp HIRAM	; jump to the copied code
+
+prgineprom:
+
+    org HIRAM
+
+prgstart:
 
 ; Set up Stack Pointer (first push/call will wrap to 0xffff)
     ld sp, 0x0000
@@ -85,20 +116,26 @@ init:
 
     ld b, 1         ;1 blink, MMU initialized
     call ledblink
-    ld b, 3
+    ld b, 2
     call delays
 
     call asci0init
     ld b, 2         ;2 blinks, ASCI 0 initialized
     call ledblink
-    ld b, 3
+    ld b, 2
     call delays
 
     call asci1init
     ld b, 3         ;3 blinks, ASCI 1 initialized
     call ledblink
-    ld b, 3
+    ld b, 2
     call delays
+
+    ld a, 0
+    ld (indindex), a
+
+    ld a, 00010001b
+    ld (cspattern), a
 
     jp testloop
 
@@ -278,13 +315,27 @@ delay2loop:
 
 ; Main test loop
 testloop:
-    ld b, 5
+    ld b, 1
     call ledblink
+    ld b, 1
+    call delays
+
+    ld a, 1
+    out (RAMSEL), a
     ld b, 2
     call delays
+    ld a, 1
+    out (ROMSEL), a
 
     ld hl, asci0txt
     call asci0pstr
+    ld hl, indicator
+    ld b, 0
+    ld a, (indindex)
+    ld c, a
+    add hl, bc
+    ld e, (hl)
+    call asci0putc
     ld hl, built
     call asci0pstr
     call asci0getc
@@ -298,6 +349,13 @@ asci0noin:
 
     ld hl, asci1txt
     call asci1pstr
+    ld hl, indicator
+    ld b, 0
+    ld a, (indindex)
+    ld c, a
+    add hl, bc
+    ld e, (hl)
+    call asci1putc
     ld hl, built
     call asci1pstr
     call asci1getc
@@ -309,17 +367,33 @@ asci0noin:
     call asci1pstr
 asci1noin:
 
+;Indicator index for messages
+
+    ld a, (indindex)
+    inc a
+    and 00000011b
+    ld (indindex), a
+
+;Chip Select and reset output
+    ld a, (cspattern)
+    out (CSPORT), a
+    rlca
+    ld (cspattern), a
+
     jp testloop
 
 asci0txt:
-    db "ASCI port 0 - "
+    db "ASCI port 0 "
     db 0
 asci1txt:
-    db "ASCI port 1 - "
+    db "ASCI port 1 "
     db 0
 
+indicator:
+    db '|', '/', '-', '\\'
+
 built:
-    db "Test program for Z180 computer"
+    db " Test program for Z180 computer"
     include "tbuilt180.z80"
     db '\r', '\n'
     db 0
@@ -327,5 +401,13 @@ built:
 inptxt:
     db " <- was recieved"
     db '\r', '\n'
+    db 0
+
+prgend:
+
+indindex:
+    db 0
+
+cspattern:
     db 0
 
