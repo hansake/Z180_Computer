@@ -89,7 +89,7 @@ The function is selected by writing to the specified port (data bits, don't care
 * - data bit 0 set to "1": select SD0 SPI FLASH
 * - data bit 1 set to "1": select SD1 SPI FLASH
 * - data bit 2 set to "1": select ATmega328P SPI interface
-* - data bit 3 set to "1": reset from Z180 to ATmega328P (if LP8 pin 2 and pin 3 are connected)
+* - data bit 3 set to "1": reset from Z180 to ATmega328P (if JP8 pin 2 and pin 3 are connected)
 
 ## Testing the Z180 computer board
 
