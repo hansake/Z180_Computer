@@ -99,3 +99,5 @@ text on the serial port.
 
 The Z180 CPU is blinking another LED and outputs text on serial port 0 and 1. The test program also recieves
 any character input on the serial ports.
+
+The testprogram is copied to RAM and running from there.
