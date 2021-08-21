@@ -1,0 +1,78 @@
+Name            Z180_ADR;
+Partno          U5;
+Revision        1.3;
+Date            2021-08-21;
+Designer        hal;
+Company         atHome;
+Location        None;
+Assembly        None;
+Device          G22V10;
+
+/*
+ * Inputs: CPU clock, memory and io access signal and addresses
+ */
+Pin 1 = CLK;
+Pin 2 = MREQ;
+Pin 3 = IORQ;
+Pin 4 = RD;
+Pin 5 = WR;
+Pin 6 = A0;
+Pin 7 = A1;
+Pin 8 = A2;
+Pin 9 = A3;
+Pin 10 = A4;
+Pin 11 = A5;
+Pin 13 = A6;
+Pin 14 = RESET;
+Pin 15 = A7;
+Pin 16 = A18;
+Pin 17 = A19;
+
+/* Outputs: select register, i/o and memory select
+ * 
+ */
+Pin 23 = CLKREG;
+Pin 22 = ROMCE;
+Pin 21 = RAMLCE;
+Pin 20 = RAMHCE;
+Pin 19 = MEMSEL;
+Pin 18 = LED;
+
+
+/*
+ * Logic to control i/o addresses and memory
+ */
+
+/* Decode I/O addresses to select EPROM or RAM in lower memory */
+
+ROMSEL = !IORQ & MREQ & !WR & !A0 & !A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7; /* Write to 0x40 selects EPROM */
+RAMSEL = !IORQ & MREQ & !WR & A0 & !A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7; /* Write to 0x41 selects RAM */
+
+MEMSEL.D = ((MEMSEL & !ROMSEL)  # RAMSEL) & RESET;
+MEMSEL.SP = 'b'0;
+MEMSEL.AR = 'b'0;
+
+/* Decode I/O addresses to control LED on/off */
+
+LEDOFF = !IORQ & MREQ & !WR & !A0 & A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7; /* Write to 0x42 turns LED off */
+LEDON = !IORQ & MREQ & !WR & A0 & A1 & !A2 & !A3 & !A4 & !A5 & A6 & !A7; /* Write to 0x43 turns LED on */
+
+LED.D = ((LED & !LEDOFF)  # LEDON) & RESET;
+LED.SP = 'b'0;
+LED.AR = 'b'0;
+
+/* Latch data to 74LS74 based selection register */
+
+CLKREG = !(!IORQ & MREQ & !WR & !A0 & !A1 & A2 & !A3 & !A4 & !A5 & A6 & !A7); /* Write to 0x44 latches data */
+
+/* Decode memory addresses */
+
+ /* High 512K RAM */
+RAMHCE = !(!MREQ & IORQ & A19);
+
+/* Low 512K all RAM if no EPROM is selected (MEMSEL == 'b'1') */
+/* RAM between 256K and 512K if EPROM is selected (MEMSEL == 'b'0') */
+RAMLCE = !(!MREQ & IORQ & ((!A19 & MEMSEL) # (A18 & !A19 & !MEMSEL)));
+
+ /* Low 256K EPROM if selected (MEMSEL == 'b'0'') */
+ROMCE = !(!MREQ & IORQ & !A18 & !A19 & !MEMSEL);
