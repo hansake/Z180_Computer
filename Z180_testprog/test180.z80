@@ -11,8 +11,8 @@
 ;   - copy test program to RAM and execute
 ;   - switch to low RAM using MEMSEL
 ;   - test 74LS74 select outputs
+;   - test all RAM using MMU and MEMSEL
 ; todo
-;   - test all RAM using MEMSEL
 ;   - interupt test
 
 ; Internal ports
@@ -57,7 +57,7 @@ boot:
 
 init:
 
-; Set up the MMU
+; Set up the MMU initially
 ;
 ; Common Bank 0, 4KB
 ;    logical: 0x0000 - 0x0fff
@@ -313,19 +313,44 @@ delay2loop:
     djnz delays
     ret
 
+; Test RAM
+; reg bc: number of bytes to test
+; reg hl: start address of test
+; reg a; returns 0 if RAM ok, 1 if error
+ramtest:
+    ld a,0		; reset error flag
+    ld (ramerr),a
+ramtstlop:
+    ld e,0x00
+    ld (hl),e
+    ld a,(hl)
+    cp e
+    jp z,ramtstff
+    ld a,1
+    ld (ramerr),a
+ramtstff:
+    ld e,0xff
+    ld (hl),e
+    ld a,(hl)
+    cp e
+    jp z,ramtstnxt
+    ld a,1
+    ld (ramerr),a
+ramtstnxt:
+    inc hl
+    dec bc
+    ld a,b
+    or c
+    jr nz, ramtstlop
+    ld a, (ramerr)
+    ret
+
 ; Main test loop
 testloop:
     ld b, 1
     call ledblink
     ld b, 1
     call delays
-
-    ld a, 1
-    out (RAMSEL), a
-    ld b, 2
-    call delays
-    ld a, 1
-    out (ROMSEL), a
 
     ld hl, asci0txt
     call asci0pstr
@@ -368,17 +393,70 @@ asci0noin:
 asci1noin:
 
 ;Indicator index for messages
-
     ld a, (indindex)
     inc a
     and 00000011b
     ld (indindex), a
 
-;Chip Select and reset output
+;Chip Select and reset outputs
     ld a, (cspattern)
     out (CSPORT), a
     rlca
     ld (cspattern), a
+
+; Test RAM
+
+; Enable RAM in low memory
+    ld a, 1
+    out (RAMSEL), a   ; select RAM instead of EPROM from address 0
+
+; Test physical RAM
+    ld ix, ramtsttab
+ramtloop:
+    ld l, (ix + 0)
+    ld h, (ix + 1)
+    ld a, h
+    or l
+    jr z, ramtend   ; end of test table
+    ld a, (ix + 2)
+    ld bc, BBR
+    out (c), a
+
+    call asci0pstr
+    ld l, (ix + 0)
+    ld h, (ix + 1)
+    call asci1pstr
+    ld l, (ix + 3)
+    ld h, (ix + 4)
+    ld c, (ix + 5)
+    ld b, (ix + 6)
+    call ramtest
+    or a
+    jr z, ramisok
+    ld hl, ramtxterr
+    call asci0pstr
+    ld hl, ramtxterr
+    call asci1pstr
+    jr ramtnxt
+ramisok:
+    ld hl, ramtxtok
+    call asci0pstr
+    ld hl, ramtxtok
+    call asci1pstr
+ramtnxt:
+    ld bc, 7
+    add ix, bc
+    jr ramtloop
+ramtend:
+
+; Enable EPROM in low memory
+    ld a, 0
+    out (ROMSEL), a
+
+; Restore Bank Area
+    ld a, 0x40
+    ld bc, BBR
+    out (c), a
 
     jp testloop
 
@@ -403,11 +481,200 @@ inptxt:
     db '\r', '\n'
     db 0
 
+; RAM test table
+ramtsttab:
+    dw ramtxt0  ;test message, end of table if NUL
+    db 0x00     ;BBR
+    dw 0x0000   ;logical test start address
+    dw 0xf000   ;size of RAM block to test
+
+    dw ramtxt1  ;test message
+    db 0x0e     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt2  ;test message
+    db 0x1c     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt3  ;test message
+    db 0x2a     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt4  ;test message
+    db 0x38     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt5  ;test message
+    db 0x46     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt6  ;test message
+    db 0x54     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt7  ;test message
+    db 0x62     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt8  ;test message
+    db 0x70     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt9  ;test message
+    db 0x7e     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt10 ;test message
+    db 0x8c     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt11 ;test message
+    db 0x9a     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt12 ;test message
+    db 0xa8     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt13 ;test message
+    db 0xb6     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt14 ;test message
+    db 0xc4     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt15 ;test message
+    db 0xd2     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt16 ;test message
+    db 0xe0     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt17 ;test message
+    db 0xee     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0xe000   ;size of RAM block to test
+
+    dw ramtxt18 ;test message
+    db 0xfc     ;BBR
+    dw 0x1000   ;logical test start address
+    dw 0x2000   ;size of RAM block to test
+
+    dw 0        ;end of table
+
+ramtxtok:
+    db " - OK"
+    db '\r', '\n'
+    db 0
+
+ramtxterr:
+    db " - ERROR"
+    db '\r', '\n'
+    db 0
+
+ramtxt0:
+    db "Test physical RAM 0x00000 - 0x0efff"
+    db 0
+
+ramtxt1:
+    db "Test physical RAM 0x0f000 - 0x1cfff"
+    db 0
+
+ramtxt2:
+    db "Test physical RAM 0x1d000 - 0x2afff"
+    db 0
+
+ramtxt3:
+    db "Test physical RAM 0x2b000 - 0x38fff"
+    db 0
+
+ramtxt4:
+    db "Test physical RAM 0x39000 - 0x46fff"
+    db 0
+
+ramtxt5:
+    db "Test physical RAM 0x47000 - 0x54fff"
+    db 0
+
+ramtxt6:
+    db "Test physical RAM 0x55000 - 0x62fff"
+    db 0
+
+ramtxt7:
+    db "Test physical RAM 0x63000 - 0x70fff"
+    db 0
+
+ramtxt8:
+    db "Test physical RAM 0x71000 - 0x7efff"
+    db 0
+
+ramtxt9:
+    db "Test physical RAM 0x7f000 - 0x8cfff"
+    db 0
+
+ramtxt10:
+    db "Test physical RAM 0x8d000 - 0x9afff"
+    db 0
+
+ramtxt11:
+    db "Test physical RAM 0x9b000 - 0xa8fff"
+    db 0
+
+ramtxt12:
+    db "Test physical RAM 0xa9000 - 0xb6fff"
+    db 0
+
+ramtxt13:
+    db "Test physical RAM 0xb7000 - 0xc4fff"
+    db 0
+
+ramtxt14:
+    db "Test physical RAM 0xc5000 - 0xd2fff"
+    db 0
+
+ramtxt15:
+    db "Test physical RAM 0xd3000 - 0xe0fff"
+    db 0
+
+ramtxt16:
+    db "Test physical RAM 0xe1000 - 0xeefff"
+    db 0
+
+ramtxt17:
+    db "Test physical RAM 0xef000 - 0xfcfff"
+    db 0
+
+ramtxt18:
+    db "Test physical RAM 0xfd000 - 0xfefff"
+    db 0
+
+; The rest of RAM is for variables
 prgend:
 
 indindex:
     db 0
 
 cspattern:
+    db 0
+
+ramerr:
     db 0
 
