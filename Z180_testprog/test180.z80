@@ -12,6 +12,7 @@
 ;   - switch to low RAM using MEMSEL
 ;   - test 74LS74 select outputs
 ;   - test all RAM using MMU and MEMSEL
+;   - set no wait states for RAM access
 ; todo
 ;   - interupt test
 
@@ -28,6 +29,9 @@ TDR0:   equ 0x0006  ;ASCI Transmit Data Register 0
 TDR1:   equ 0x0007  ;ASCI Transmit Data Register 1
 RDR0:   equ 0x0008  ;ASCI Receive Data FIFO 0
 RDR1:   equ 0x0009  ;ASCI Receive Data FIFO 1
+
+; DMA/WAIT Control Register
+DCNTL:  equ 0x0032  ;DMA/WAIT Control Register
 
 ; MMU Registers
 CBR:    equ 0x0038  ;MMU Common Base Register
@@ -110,6 +114,12 @@ prgstart:
 
 ; Set up Stack Pointer (first push/call will wrap to 0xffff)
     ld sp, 0x0000
+
+; When running from RAM configure no memory wait states
+    ld bc, DCNTL
+    in a, (c)
+    and 00111111b  ; reset MVI0 and MVI1
+    out (c), a
 
 ; Initialize devices
 ; and blink LED
