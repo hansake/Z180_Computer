@@ -1,6 +1,7 @@
 # File test180.z80
-0000			; Test program for the Z180 computer 
 0000			; test180.z80 
+0000			; 
+0000			; Test program for the Z180 computer 
 0000			; 
 0000			; testing: 
 0000			;   - simple MMU setup 
@@ -14,8 +15,13 @@
 0000			;   - test 74LS74 select outputs 
 0000			;   - test all RAM using MMU and MEMSEL 
 0000			;   - set no wait states for RAM access 
-0000			; todo 
 0000			;   - interupt test 
+0000			; 
+0000			; You are free to use, modify, and redistribute 
+0000			; this source code. The software is provided "as is", 
+0000			; without warranty of any kind. 
+0000			; Hastily Cobbled Together 2021 by Hans-Ake Lund. 
+0000			; 
 0000			 
 0000			; Internal ports 
 0000			 
@@ -31,8 +37,23 @@
 0000			RDR0:   equ 0x0008  ;ASCI Receive Data FIFO 0 
 0000			RDR1:   equ 0x0009  ;ASCI Receive Data FIFO 1 
 0000			 
+0000			; Timer Registers 
+0000			TMDR0L: equ 0x000c  ;Timer Data Register Channel 0L 
+0000			TMDR0H: equ 0x000d  ;Timer Data Register Channel 0H 
+0000			RLDR0L: equ 0x000e  ;Timer Reload Register 0L 
+0000			RLDR0H: equ 0x000f  ;Timer Reload Register 0H 
+0000			TCR:    equ 0x0010  ;Timer Control Register 
+0000			TMDR1L: equ 0x0014  ;Timer Data Register Channel 1L 
+0000			TMDR1H: equ 0x0015  ;Timer Data Register Channel 1H 
+0000			RLDR1L: equ 0x0016  ;Timer Reload Register 1L 
+0000			RLDR1H: equ 0x0017  ;Timer Reload Register 1H 
+0000			 
 0000			; DMA/WAIT Control Register 
 0000			DCNTL:  equ 0x0032  ;DMA/WAIT Control Register 
+0000			 
+0000			; Interrupt Control 
+0000			IL:     equ 0x0033  ;Interrupt Vector Low Register 
+0000			ITC:    equ 0x0034  ;Int/TRAP Control Register 
 0000			 
 0000			; MMU Registers 
 0000			CBR:    equ 0x0038  ;MMU Common Base Register 
@@ -91,7 +112,7 @@
 0015			HIRAM: equ 0xf000 
 0015			 
 0015			; copy the program to high RAM 
-0015 01 98 05		    ld bc,prgend - prgstart 
+0015 01 52 06		    ld bc,prgend - prgstart 
 0018 21 2e 00		    ld hl,prgineprom 
 001b 11 00 f0		    ld de,HIRAM 
 001e			cploop: 
@@ -105,7 +126,7 @@
 0027 0b			    dec bc 
 0028 c3 1e 00		    jp cploop 
 002b			cpend: 
-002b c3 00 f0		    jp HIRAM	; jump to the copied code 
+002b c3 00 f0		    jp prgstart	; jump to the copied code 
 002e			 
 002e			prgineprom: 
 002e			 
@@ -126,570 +147,665 @@ f00c			; Initialize devices
 f00c			; and blink LED 
 f00c			 
 f00c 06 01		    ld b, 1         ;1 blink, MMU initialized 
-f00e cd b3 f0		    call ledblink 
+f00e cd e0 f0		    call ledblink 
 f011 06 02		    ld b, 2 
-f013 cd d0 f0		    call delays 
+f013 cd fd f0		    call delays 
 f016			 
-f016 cd 3d f0		    call asci0init 
+f016 cd 6a f0		    call asci0init 
 f019 06 02		    ld b, 2         ;2 blinks, ASCI 0 initialized 
-f01b cd b3 f0		    call ledblink 
+f01b cd e0 f0		    call ledblink 
 f01e 06 02		    ld b, 2 
-f020 cd d0 f0		    call delays 
+f020 cd fd f0		    call delays 
 f023			 
-f023 cd 78 f0		    call asci1init 
+f023 cd a5 f0		    call asci1init 
 f026 06 03		    ld b, 3         ;3 blinks, ASCI 1 initialized 
-f028 cd b3 f0		    call ledblink 
+f028 cd e0 f0		    call ledblink 
 f02b 06 02		    ld b, 2 
-f02d cd d0 f0		    call delays 
+f02d cd fd f0		    call delays 
 f030			 
-f030 3e 00		    ld a, 0 
-f032 32 98 f5		    ld (indindex), a 
+f030 3e 00		    ld a, 0         ;set print indicator index 
+f032 32 52 f6		    ld (indindex), a 
 f035			 
-f035 3e 11		    ld a, 00010001b 
-f037 32 99 f5		    ld (cspattern), a 
+f035 3e 11		    ld a, 00010001b ;set rotating bits for 74LS74 CS output 
+f037 32 53 f6		    ld (cspattern), a 
 f03a			 
-f03a c3 0e f1		    jp testloop 
-f03d			 
-f03d			; ASCI routines 
-f03d			 
-f03d			; Initialize port 0 
-f03d			asci0init: 
-f03d 3e 64		    ld a, 01100100b 
-f03f			            ; bit 7 = 0: MPE - disabled 
-f03f			            ; bit 6 = 1: RE - Rx enabled 
-f03f			            ; bit 5 = 1: TE - Tx enabled 
-f03f			            ; bit 4 = 0: RTS0 - set to low, RTS active (?) 
-f03f			            ; bit 3 = 0: MPBR/EFR - not used 
-f03f			            ; bit 2 - 0 = 100 - Start + 8 bit data + 1 stop 
-f03f 01 00 00		    ld bc, CNTLA0 
-f042 ed 79		    out (c), a 
-f044			 
-f044			    ; set Baudrate: PHI / (PS * DR * SS) = Baud Rate 
-f044			    ; 9216000 Hz / (30 * 16 * 2) = 9600 Baud 
-f044 3e 21		    ld a, 00100001b 
-f046			            ; bit 7 = 0:  MPBT - disabled 
-f046			            ; bit 6 = 0:  MP - disabled 
-f046			            ; bit 5 = 1:  CTS/PS - prescale = 30 (PS as SS2-0 are not 111) 
-f046			            ; bit 4 = 0:  PEO - ignored as no parity configured 
-f046			            ; bit 3 = 0:  DR - Clock factor = 16 
-f046			            ; bit 2 - 0 = 001:  SS2-SS0 - Divide Ratio: 2 
-f046 01 02 00		    ld bc, CNTLB0 
-f049 ed 79		    out (c), a 
-f04b			 
-f04b c9			    ret 
-f04c			 
-f04c			; Output a character on port 0 
-f04c			; reg E contains character to output 
-f04c			asci0putc: 
-f04c 01 04 00		    ld bc, STAT0 
-f04f ed 78		    in a, (c) 
-f051 e6 02		    and 00000010b    ;test bit 1 = TDRE: Transmit Data Register Empty 
-f053 28 f7		    jr z, asci0putc  ;not empty yet 
-f055 7b			    ld a, e 
-f056 01 06 00		    ld bc, TDR0 
-f059 ed 79		    out (c), a       ;output character 
-f05b c9			    ret 
-f05c			 
-f05c			; Input a character from port 0 
-f05c			; reg E contains the character 
-f05c			; if E == 0 no character is available 
-f05c			asci0getc: 
-f05c 1e 00		    ld e, 0 
-f05e 01 04 00		    ld bc, STAT0 
-f061 ed 78		    in a, (c) 
-f063 e6 80		    and 10000000b    ;test bit 7 = RDRF: Recieve data in FIFO 
-f065 c8			    ret z            ;empty 
-f066 7b			    ld a, e 
-f067 01 08 00		    ld bc, RDR0 
-f06a ed 78		    in a, (c)        ;input character 
-f06c 5f			    ld e, a 
-f06d c9			    ret 
-f06e			 
-f06e			; Output a character string on port 0 
-f06e			; reg HL points to string to output 
-f06e			; the string is ended by 0 
-f06e			asci0pstr: 
-f06e 7e			    ld a, (hl) 
-f06f b7			    or a 
-f070 c8			    ret z 
-f071 5e			    ld e, (hl) 
-f072 23			    inc hl 
-f073 cd 4c f0		    call asci0putc 
-f076 18 f6		    jr asci0pstr 
+f03a 3e 00		    ld a, 0          ;reset interrupt indicator 
+f03c 32 55 f6		    ld (gotint), a 
+f03f			 
+f03f			; Disable all external interrupts 
+f03f 01 34 00		    ld bc, ITC 
+f042 3e 00		    ld a, 00000000b 
+f044 ed 79		    out (c), a 
+f046			 
+f046			; Initialize timer 0 
+f046 01 0c 00		    ld bc, TMDR0L 
+f049 e6 ff		    and 0xff         ; set low timer 0 
+f04b ed 79		    out (c), a 
+f04d 01 0d 00		    ld bc, TMDR0H 
+f050 e6 ef		    and 0xef         ; set high timer 0 
+f052 ed 79		    out (c), a 
+f054			 
+f054 01 10 00		    ld bc, TCR 
+f057 3e 11		    ld a, 00010001b  ; bit 4 TIE0 (Timer Interrupt Enable 0) 
+f059			                     ; bit 0 TDE0 (Timer Down Count Enable 0) 
+f059 ed 79		    out (c), a 
+f05b			 
+f05b			; Initialize internal interupts and enable 
+f05b			intinit: 
+f05b 3e f6		    ld a, ivblock / 256 
+f05d ed 47		    ld i, a 
+f05f 3e 40		    ld a, ivblock & 0x00ff 
+f061 01 33 00		    ld bc, IL 
+f064 ed 79		    out (c), a 
+f066 fb			    ei 
+f067			 
+f067 c3 3b f1		    jp testloop 
+f06a			 
+f06a			; ASCI routines 
+f06a			 
+f06a			; Initialize port 0 
+f06a			asci0init: 
+f06a 3e 64		    ld a, 01100100b 
+f06c			            ; bit 7 = 0: MPE - disabled 
+f06c			            ; bit 6 = 1: RE - Rx enabled 
+f06c			            ; bit 5 = 1: TE - Tx enabled 
+f06c			            ; bit 4 = 0: RTS0 - set to low, RTS active (?) 
+f06c			            ; bit 3 = 0: MPBR/EFR - not used 
+f06c			            ; bit 2 - 0 = 100 - Start + 8 bit data + 1 stop 
+f06c 01 00 00		    ld bc, CNTLA0 
+f06f ed 79		    out (c), a 
+f071			 
+f071			    ; set Baudrate: PHI / (PS * DR * SS) = Baud Rate 
+f071			    ; 9216000 Hz / (30 * 16 * 2) = 9600 Baud 
+f071 3e 21		    ld a, 00100001b 
+f073			            ; bit 7 = 0:  MPBT - disabled 
+f073			            ; bit 6 = 0:  MP - disabled 
+f073			            ; bit 5 = 1:  CTS/PS - prescale = 30 (PS as SS2-0 are not 111) 
+f073			            ; bit 4 = 0:  PEO - ignored as no parity configured 
+f073			            ; bit 3 = 0:  DR - Clock factor = 16 
+f073			            ; bit 2 - 0 = 001:  SS2-SS0 - Divide Ratio: 2 
+f073 01 02 00		    ld bc, CNTLB0 
+f076 ed 79		    out (c), a 
 f078			 
-f078			; Initialize port 1 
-f078			asci1init: 
-f078 3e 64		    ld a, 01100100b 
-f07a			            ; bit 7 = 0: MPE - disabled 
-f07a			            ; bit 6 = 1: RE - Rx enabled 
-f07a			            ; bit 5 = 1: TE - Tx enabled 
-f07a			            ; bit 4 = 0: RTS0 - set to low, RTS active (?) 
-f07a			            ; bit 3 = 0: MPBR/EFR - not used 
-f07a			            ; bit 2 - 0 = 100 - Start + 8 bit data + 1 stop 
-f07a 01 01 00		    ld bc, CNTLA1 
-f07d ed 79		    out (c), a 
-f07f			 
-f07f			    ; set Baudrate: PHI / (PS * DR * SS) = Baud Rate 
-f07f			    ; 9216000 Hz / (30 * 16 * 2) = 9600 Baud 
-f07f 3e 21		    ld a, 00100001b 
-f081			            ; bit 7 = 0:  MPBT - disabled 
-f081			            ; bit 6 = 0:  MP - disabled 
-f081			            ; bit 5 = 1:  CTS/PS - prescale = 30 (PS as SS2-0 are not 111) 
-f081			            ; bit 4 = 0:  PEO - ignored as no parity configured 
-f081			            ; bit 3 = 0:  DR - Clock factor = 16 
-f081			            ; bit 2 - 0 = 001:  SS2-SS0 - Divide Ratio: 2 
-f081 01 03 00		    ld bc, CNTLB1 
-f084 ed 79		    out (c), a 
-f086			 
-f086 c9			    ret 
-f087			 
-f087			; Output a character on port 1 
-f087			; reg E contains character to output 
-f087			asci1putc: 
-f087 01 05 00		    ld bc, STAT1 
-f08a ed 78		    in a, (c) 
-f08c e6 02		    and 00000010b    ;test bit 1 = TDRE: Transmit Data Register Empty 
-f08e 28 f7		    jr z, asci1putc  ;not empty yet 
-f090 7b			    ld a, e 
-f091 01 07 00		    ld bc, TDR1 
-f094 ed 79		    out (c), a       ;output character 
-f096 c9			    ret 
-f097			 
-f097			; Input a character from port 1 
-f097			; reg E contains the character 
-f097			; if E == 0 no character is available 
-f097			asci1getc: 
-f097 1e 00		    ld e, 0 
-f099 01 05 00		    ld bc, STAT1 
-f09c ed 78		    in a, (c) 
-f09e e6 80		    and 10000000b    ;test bit 7 = RDRF: Recieve data in FIFO 
-f0a0 c8			    ret z            ;empty 
-f0a1 7b			    ld a, e 
-f0a2 01 09 00		    ld bc, RDR1 
-f0a5 ed 78		    in a, (c)        ;input character 
-f0a7 5f			    ld e, a 
-f0a8 c9			    ret 
-f0a9			 
-f0a9			; Output a character string on port 1 
-f0a9			; reg HL points to string to output 
-f0a9			; the string is ended by 0 
-f0a9			asci1pstr: 
-f0a9 7e			    ld a, (hl) 
-f0aa b7			    or a 
-f0ab c8			    ret z 
-f0ac 5e			    ld e, (hl) 
-f0ad 23			    inc hl 
-f0ae cd 87 f0		    call asci1putc 
-f0b1 18 f6		    jr asci1pstr 
+f078 c9			    ret 
+f079			 
+f079			; Output a character on port 0 
+f079			; reg E contains character to output 
+f079			asci0putc: 
+f079 01 04 00		    ld bc, STAT0 
+f07c ed 78		    in a, (c) 
+f07e e6 02		    and 00000010b    ;test bit 1 = TDRE: Transmit Data Register Empty 
+f080 28 f7		    jr z, asci0putc  ;not empty yet 
+f082 7b			    ld a, e 
+f083 01 06 00		    ld bc, TDR0 
+f086 ed 79		    out (c), a       ;output character 
+f088 c9			    ret 
+f089			 
+f089			; Input a character from port 0 
+f089			; reg E contains the character 
+f089			; if E == 0 no character is available 
+f089			asci0getc: 
+f089 1e 00		    ld e, 0 
+f08b 01 04 00		    ld bc, STAT0 
+f08e ed 78		    in a, (c) 
+f090 e6 80		    and 10000000b    ;test bit 7 = RDRF: Recieve data in FIFO 
+f092 c8			    ret z            ;empty 
+f093 7b			    ld a, e 
+f094 01 08 00		    ld bc, RDR0 
+f097 ed 78		    in a, (c)        ;input character 
+f099 5f			    ld e, a 
+f09a c9			    ret 
+f09b			 
+f09b			; Output a character string on port 0 
+f09b			; reg HL points to string to output 
+f09b			; the string is ended by 0 
+f09b			asci0pstr: 
+f09b 7e			    ld a, (hl) 
+f09c b7			    or a 
+f09d c8			    ret z 
+f09e 5e			    ld e, (hl) 
+f09f 23			    inc hl 
+f0a0 cd 79 f0		    call asci0putc 
+f0a3 18 f6		    jr asci0pstr 
+f0a5			 
+f0a5			; Initialize port 1 
+f0a5			asci1init: 
+f0a5 3e 64		    ld a, 01100100b 
+f0a7			            ; bit 7 = 0: MPE - disabled 
+f0a7			            ; bit 6 = 1: RE - Rx enabled 
+f0a7			            ; bit 5 = 1: TE - Tx enabled 
+f0a7			            ; bit 4 = 0: RTS0 - set to low, RTS active (?) 
+f0a7			            ; bit 3 = 0: MPBR/EFR - not used 
+f0a7			            ; bit 2 - 0 = 100 - Start + 8 bit data + 1 stop 
+f0a7 01 01 00		    ld bc, CNTLA1 
+f0aa ed 79		    out (c), a 
+f0ac			 
+f0ac			    ; set Baudrate: PHI / (PS * DR * SS) = Baud Rate 
+f0ac			    ; 9216000 Hz / (30 * 16 * 2) = 9600 Baud 
+f0ac 3e 21		    ld a, 00100001b 
+f0ae			            ; bit 7 = 0:  MPBT - disabled 
+f0ae			            ; bit 6 = 0:  MP - disabled 
+f0ae			            ; bit 5 = 1:  CTS/PS - prescale = 30 (PS as SS2-0 are not 111) 
+f0ae			            ; bit 4 = 0:  PEO - ignored as no parity configured 
+f0ae			            ; bit 3 = 0:  DR - Clock factor = 16 
+f0ae			            ; bit 2 - 0 = 001:  SS2-SS0 - Divide Ratio: 2 
+f0ae 01 03 00		    ld bc, CNTLB1 
+f0b1 ed 79		    out (c), a 
 f0b3			 
-f0b3			; ledblink flashes the LED 
-f0b3			; number of times in B reg 
-f0b3			; using reg: a, b, hl 
-f0b3			ledblink: 
-f0b3 21 ff ff		    ld hl, 0xffff 
-f0b6 3e 01		    ld a, 1 
-f0b8 d3 43		    out(LEDON), a 
-f0ba			ledonloop: 
-f0ba 2b			    dec hl 
-f0bb 7c			    ld a, h 
-f0bc b5			    or l 
-f0bd c2 ba f0		    jp nz, ledonloop 
-f0c0 21 ff ff		    ld hl, 0xffff 
-f0c3 3e 00		    ld a, 0 
-f0c5 d3 42		    out(LEDOFF), a 
-f0c7			ledoffloop: 
-f0c7 2b			    dec hl 
-f0c8 7c			    ld a, h 
-f0c9 b5			    or l 
-f0ca c2 c7 f0		    jp nz, ledoffloop 
-f0cd 10 e4		    djnz ledblink 
-f0cf c9			    ret 
-f0d0			 
-f0d0			; delays makes a delay multiplied 
-f0d0			; by number of times in B reg 
-f0d0			; using reg: a, b, hl 
-f0d0			delays: 
-f0d0 21 ff ff		    ld hl, 0xffff 
-f0d3			delay1loop: 
-f0d3 2b			    dec hl 
-f0d4 7c			    ld a, h 
-f0d5 b5			    or l 
-f0d6 c2 d3 f0		    jp nz, delay1loop 
-f0d9 21 ff ff		    ld hl, 0xffff 
-f0dc			delay2loop: 
-f0dc 2b			    dec hl 
-f0dd 7c			    ld a, h 
-f0de b5			    or l 
-f0df c2 dc f0		    jp nz, delay2loop 
-f0e2 10 ec		    djnz delays 
-f0e4 c9			    ret 
-f0e5			 
-f0e5			; Test RAM 
-f0e5			; reg bc: number of bytes to test 
-f0e5			; reg hl: start address of test 
-f0e5			; reg a; returns 0 if RAM ok, 1 if error 
-f0e5			ramtest: 
-f0e5 3e 00		    ld a,0		; reset error flag 
-f0e7 32 9a f5		    ld (ramerr),a 
-f0ea			ramtstlop: 
-f0ea 1e 00		    ld e,0x00 
-f0ec 73			    ld (hl),e 
-f0ed 7e			    ld a,(hl) 
-f0ee bb			    cp e 
-f0ef ca f7 f0		    jp z,ramtstff 
-f0f2 3e 01		    ld a,1 
-f0f4 32 9a f5		    ld (ramerr),a 
-f0f7			ramtstff: 
-f0f7 1e ff		    ld e,0xff 
-f0f9 73			    ld (hl),e 
-f0fa 7e			    ld a,(hl) 
-f0fb bb			    cp e 
-f0fc ca 04 f1		    jp z,ramtstnxt 
-f0ff 3e 01		    ld a,1 
-f101 32 9a f5		    ld (ramerr),a 
-f104			ramtstnxt: 
-f104 23			    inc hl 
-f105 0b			    dec bc 
-f106 78			    ld a,b 
-f107 b1			    or c 
-f108 20 e0		    jr nz, ramtstlop 
-f10a 3a 9a f5		    ld a, (ramerr) 
-f10d c9			    ret 
-f10e			 
-f10e			; Main test loop 
-f10e			testloop: 
-f10e 06 01		    ld b, 1 
-f110 cd b3 f0		    call ledblink 
-f113 06 01		    ld b, 1 
-f115 cd d0 f0		    call delays 
-f118			 
-f118 21 e7 f1		    ld hl, asci0txt 
-f11b cd 6e f0		    call asci0pstr 
-f11e 21 01 f2		    ld hl, indicator 
-f121 06 00		    ld b, 0 
-f123 3a 98 f5		    ld a, (indindex) 
-f126 4f			    ld c, a 
-f127 09			    add hl, bc 
-f128 5e			    ld e, (hl) 
-f129 cd 4c f0		    call asci0putc 
-f12c 21 05 f2		    ld hl, built 
-f12f cd 6e f0		    call asci0pstr 
-f132 cd 5c f0		    call asci0getc 
-f135 7b			    ld a, e 
-f136 b7			    or a 
-f137 ca 43 f1		    jp z, asci0noin 
-f13a cd 4c f0		    call asci0putc 
-f13d 21 3f f2		    ld hl, inptxt 
-f140 cd 6e f0		    call asci0pstr 
-f143			asci0noin: 
-f143			 
-f143 21 f4 f1		    ld hl, asci1txt 
-f146 cd a9 f0		    call asci1pstr 
-f149 21 01 f2		    ld hl, indicator 
-f14c 06 00		    ld b, 0 
-f14e 3a 98 f5		    ld a, (indindex) 
-f151 4f			    ld c, a 
-f152 09			    add hl, bc 
-f153 5e			    ld e, (hl) 
-f154 cd 87 f0		    call asci1putc 
-f157 21 05 f2		    ld hl, built 
-f15a cd a9 f0		    call asci1pstr 
-f15d cd 97 f0		    call asci1getc 
-f160 7b			    ld a, e 
-f161 b7			    or a 
-f162 ca 6e f1		    jp z, asci1noin 
-f165 cd 87 f0		    call asci1putc 
-f168 21 3f f2		    ld hl, inptxt 
-f16b cd a9 f0		    call asci1pstr 
-f16e			asci1noin: 
-f16e			 
-f16e			;Indicator index for messages 
-f16e 3a 98 f5		    ld a, (indindex) 
-f171 3c			    inc a 
-f172 e6 03		    and 00000011b 
-f174 32 98 f5		    ld (indindex), a 
-f177			 
-f177			;Chip Select and reset outputs 
-f177 3a 99 f5		    ld a, (cspattern) 
-f17a d3 44		    out (CSPORT), a 
-f17c 07			    rlca 
-f17d 32 99 f5		    ld (cspattern), a 
-f180			 
-f180			; Test RAM 
-f180			 
-f180			; Enable RAM in low memory 
-f180 3e 01		    ld a, 1 
-f182 d3 41		    out (RAMSEL), a   ; select RAM instead of EPROM from address 0 
-f184			 
-f184			; Test physical RAM 
-f184 dd 21 52 f2	    ld ix, ramtsttab 
-f188			ramtloop: 
-f188 dd 6e 00		    ld l, (ix + 0) 
-f18b dd 66 01		    ld h, (ix + 1) 
-f18e 7c			    ld a, h 
-f18f b5			    or l 
-f190 28 47		    jr z, ramtend   ; end of test table 
-f192 dd 7e 02		    ld a, (ix + 2) 
-f195 01 39 00		    ld bc, BBR 
-f198 ed 79		    out (c), a 
-f19a			 
-f19a cd 6e f0		    call asci0pstr 
-f19d dd 6e 00		    ld l, (ix + 0) 
-f1a0 dd 66 01		    ld h, (ix + 1) 
-f1a3 cd a9 f0		    call asci1pstr 
-f1a6 dd 6e 03		    ld l, (ix + 3) 
-f1a9 dd 66 04		    ld h, (ix + 4) 
-f1ac dd 4e 05		    ld c, (ix + 5) 
-f1af dd 46 06		    ld b, (ix + 6) 
-f1b2 cd e5 f0		    call ramtest 
-f1b5 b7			    or a 
-f1b6 28 0e		    jr z, ramisok 
-f1b8 21 e1 f2		    ld hl, ramtxterr 
-f1bb cd 6e f0		    call asci0pstr 
-f1be 21 e1 f2		    ld hl, ramtxterr 
-f1c1 cd a9 f0		    call asci1pstr 
-f1c4 18 0c		    jr ramtnxt 
-f1c6			ramisok: 
-f1c6 21 d9 f2		    ld hl, ramtxtok 
-f1c9 cd 6e f0		    call asci0pstr 
-f1cc 21 d9 f2		    ld hl, ramtxtok 
-f1cf cd a9 f0		    call asci1pstr 
-f1d2			ramtnxt: 
-f1d2 01 07 00		    ld bc, 7 
-f1d5 dd 09		    add ix, bc 
-f1d7 18 af		    jr ramtloop 
-f1d9			ramtend: 
-f1d9			 
-f1d9			; Enable EPROM in low memory 
-f1d9 3e 00		    ld a, 0 
-f1db d3 40		    out (ROMSEL), a 
-f1dd			 
-f1dd			; Restore Bank Area 
-f1dd 3e 40		    ld a, 0x40 
-f1df 01 39 00		    ld bc, BBR 
-f1e2 ed 79		    out (c), a 
-f1e4			 
-f1e4 c3 0e f1		    jp testloop 
-f1e7			 
-f1e7			asci0txt: 
-f1e7 ..			    db "ASCI port 0 " 
-f1f3 00			    db 0 
-f1f4			asci1txt: 
-f1f4 ..			    db "ASCI port 1 " 
-f200 00			    db 0 
-f201			 
-f201			indicator: 
-f201 .. 2f 2d 5c	    db '|', '/', '-', '\\' 
-f205			 
-f205			built: 
-f205 ..			    db " Test program for Z180 computer" 
-f224			    include "tbuilt180.z80" 
-f224 ..			    db ", built 2021-08-23 11:21" 
+f0b3 c9			    ret 
+f0b4			 
+f0b4			; Output a character on port 1 
+f0b4			; reg E contains character to output 
+f0b4			asci1putc: 
+f0b4 01 05 00		    ld bc, STAT1 
+f0b7 ed 78		    in a, (c) 
+f0b9 e6 02		    and 00000010b    ;test bit 1 = TDRE: Transmit Data Register Empty 
+f0bb 28 f7		    jr z, asci1putc  ;not empty yet 
+f0bd 7b			    ld a, e 
+f0be 01 07 00		    ld bc, TDR1 
+f0c1 ed 79		    out (c), a       ;output character 
+f0c3 c9			    ret 
+f0c4			 
+f0c4			; Input a character from port 1 
+f0c4			; reg E contains the character 
+f0c4			; if E == 0 no character is available 
+f0c4			asci1getc: 
+f0c4 1e 00		    ld e, 0 
+f0c6 01 05 00		    ld bc, STAT1 
+f0c9 ed 78		    in a, (c) 
+f0cb e6 80		    and 10000000b    ;test bit 7 = RDRF: Recieve data in FIFO 
+f0cd c8			    ret z            ;empty 
+f0ce 7b			    ld a, e 
+f0cf 01 09 00		    ld bc, RDR1 
+f0d2 ed 78		    in a, (c)        ;input character 
+f0d4 5f			    ld e, a 
+f0d5 c9			    ret 
+f0d6			 
+f0d6			; Output a character string on port 1 
+f0d6			; reg HL points to string to output 
+f0d6			; the string is ended by 0 
+f0d6			asci1pstr: 
+f0d6 7e			    ld a, (hl) 
+f0d7 b7			    or a 
+f0d8 c8			    ret z 
+f0d9 5e			    ld e, (hl) 
+f0da 23			    inc hl 
+f0db cd b4 f0		    call asci1putc 
+f0de 18 f6		    jr asci1pstr 
+f0e0			 
+f0e0			; ledblink flashes the LED 
+f0e0			; number of times in B reg 
+f0e0			; using reg: a, b, hl 
+f0e0			ledblink: 
+f0e0 21 ff ff		    ld hl, 0xffff 
+f0e3 3e 01		    ld a, 1 
+f0e5 d3 43		    out(LEDON), a 
+f0e7			ledonloop: 
+f0e7 2b			    dec hl 
+f0e8 7c			    ld a, h 
+f0e9 b5			    or l 
+f0ea c2 e7 f0		    jp nz, ledonloop 
+f0ed 21 ff ff		    ld hl, 0xffff 
+f0f0 3e 00		    ld a, 0 
+f0f2 d3 42		    out(LEDOFF), a 
+f0f4			ledoffloop: 
+f0f4 2b			    dec hl 
+f0f5 7c			    ld a, h 
+f0f6 b5			    or l 
+f0f7 c2 f4 f0		    jp nz, ledoffloop 
+f0fa 10 e4		    djnz ledblink 
+f0fc c9			    ret 
+f0fd			 
+f0fd			; delays makes a delay multiplied 
+f0fd			; by number of times in B reg 
+f0fd			; using reg: a, b, hl 
+f0fd			delays: 
+f0fd 21 ff ff		    ld hl, 0xffff 
+f100			delay1loop: 
+f100 2b			    dec hl 
+f101 7c			    ld a, h 
+f102 b5			    or l 
+f103 c2 00 f1		    jp nz, delay1loop 
+f106 21 ff ff		    ld hl, 0xffff 
+f109			delay2loop: 
+f109 2b			    dec hl 
+f10a 7c			    ld a, h 
+f10b b5			    or l 
+f10c c2 09 f1		    jp nz, delay2loop 
+f10f 10 ec		    djnz delays 
+f111 c9			    ret 
+f112			 
+f112			; Test RAM 
+f112			; reg bc: number of bytes to test 
+f112			; reg hl: start address of test 
+f112			; reg a; returns 0 if RAM ok, 1 if error 
+f112			ramtest: 
+f112 3e 00		    ld a,0		; reset RAM test error flag 
+f114 32 54 f6		    ld (ramerr),a 
+f117			ramtstlop: 
+f117 1e 00		    ld e,0x00 
+f119 73			    ld (hl),e 
+f11a 7e			    ld a,(hl) 
+f11b bb			    cp e 
+f11c ca 24 f1		    jp z,ramtstff 
+f11f 3e 01		    ld a,1 
+f121 32 54 f6		    ld (ramerr),a 
+f124			ramtstff: 
+f124 1e ff		    ld e,0xff 
+f126 73			    ld (hl),e 
+f127 7e			    ld a,(hl) 
+f128 bb			    cp e 
+f129 ca 31 f1		    jp z,ramtstnxt 
+f12c 3e 01		    ld a,1 
+f12e 32 54 f6		    ld (ramerr),a 
+f131			ramtstnxt: 
+f131 23			    inc hl 
+f132 0b			    dec bc 
+f133 78			    ld a,b 
+f134 b1			    or c 
+f135 20 e0		    jr nz, ramtstlop 
+f137 3a 54 f6		    ld a, (ramerr) 
+f13a c9			    ret 
+f13b			 
+f13b			; Main test loop 
+f13b			testloop: 
+f13b 06 01		    ld b, 1 
+f13d cd e0 f0		    call ledblink 
+f140 06 01		    ld b, 1 
+f142 cd fd f0		    call delays 
+f145			 
+f145 21 35 f2		    ld hl, asci0txt 
+f148 cd 9b f0		    call asci0pstr 
+f14b 21 4f f2		    ld hl, indicator 
+f14e 06 00		    ld b, 0 
+f150 3a 52 f6		    ld a, (indindex) 
+f153 4f			    ld c, a 
+f154 09			    add hl, bc 
+f155 5e			    ld e, (hl) 
+f156 cd 79 f0		    call asci0putc 
+f159 21 53 f2		    ld hl, built 
+f15c cd 9b f0		    call asci0pstr 
+f15f cd 89 f0		    call asci0getc 
+f162 7b			    ld a, e 
+f163 b7			    or a 
+f164 ca 70 f1		    jp z, asci0noin 
+f167 cd 79 f0		    call asci0putc 
+f16a 21 92 f2		    ld hl, inptxt 
+f16d cd 9b f0		    call asci0pstr 
+f170			asci0noin: 
+f170			 
+f170 21 42 f2		    ld hl, asci1txt 
+f173 cd d6 f0		    call asci1pstr 
+f176 21 4f f2		    ld hl, indicator 
+f179 06 00		    ld b, 0 
+f17b 3a 52 f6		    ld a, (indindex) 
+f17e 4f			    ld c, a 
+f17f 09			    add hl, bc 
+f180 5e			    ld e, (hl) 
+f181 cd b4 f0		    call asci1putc 
+f184 21 53 f2		    ld hl, built 
+f187 cd d6 f0		    call asci1pstr 
+f18a cd c4 f0		    call asci1getc 
+f18d 7b			    ld a, e 
+f18e b7			    or a 
+f18f ca 9b f1		    jp z, asci1noin 
+f192 cd b4 f0		    call asci1putc 
+f195 21 92 f2		    ld hl, inptxt 
+f198 cd d6 f0		    call asci1pstr 
+f19b			asci1noin: 
+f19b			 
+f19b			;Indicator index for messages 
+f19b 3a 52 f6		    ld a, (indindex) 
+f19e 3c			    inc a 
+f19f e6 03		    and 00000011b 
+f1a1 32 52 f6		    ld (indindex), a 
+f1a4			 
+f1a4			;Chip Select and reset outputs 
+f1a4 3a 53 f6		    ld a, (cspattern) 
+f1a7 d3 44		    out (CSPORT), a 
+f1a9 07			    rlca 
+f1aa 32 53 f6		    ld (cspattern), a 
+f1ad			 
+f1ad			; Test RAM 
+f1ad			 
+f1ad			; Enable RAM in low memory 
+f1ad 3e 01		    ld a, 1 
+f1af d3 41		    out (RAMSEL), a   ; select RAM instead of EPROM from address 0 
+f1b1			 
+f1b1			; Test physical RAM 
+f1b1 dd 21 d8 f2	    ld ix, ramtsttab 
+f1b5			ramtloop: 
+f1b5 dd 6e 00		    ld l, (ix + 0) 
+f1b8 dd 66 01		    ld h, (ix + 1) 
+f1bb 7c			    ld a, h 
+f1bc b5			    or l 
+f1bd 28 47		    jr z, ramtend   ; end of test table 
+f1bf dd 7e 02		    ld a, (ix + 2) 
+f1c2 01 39 00		    ld bc, BBR 
+f1c5 ed 79		    out (c), a 
+f1c7			 
+f1c7 cd 9b f0		    call asci0pstr 
+f1ca dd 6e 00		    ld l, (ix + 0) 
+f1cd dd 66 01		    ld h, (ix + 1) 
+f1d0 cd d6 f0		    call asci1pstr 
+f1d3 dd 6e 03		    ld l, (ix + 3) 
+f1d6 dd 66 04		    ld h, (ix + 4) 
+f1d9 dd 4e 05		    ld c, (ix + 5) 
+f1dc dd 46 06		    ld b, (ix + 6) 
+f1df cd 12 f1		    call ramtest 
+f1e2 b7			    or a 
+f1e3 28 0e		    jr z, ramisok 
+f1e5 21 67 f3		    ld hl, ramtxterr 
+f1e8 cd 9b f0		    call asci0pstr 
+f1eb 21 67 f3		    ld hl, ramtxterr 
+f1ee cd d6 f0		    call asci1pstr 
+f1f1 18 0c		    jr ramtnxt 
+f1f3			ramisok: 
+f1f3 21 5f f3		    ld hl, ramtxtok 
+f1f6 cd 9b f0		    call asci0pstr 
+f1f9 21 5f f3		    ld hl, ramtxtok 
+f1fc cd d6 f0		    call asci1pstr 
+f1ff			ramtnxt: 
+f1ff 01 07 00		    ld bc, 7 
+f202 dd 09		    add ix, bc 
+f204 18 af		    jr ramtloop 
+f206			ramtend: 
+f206			 
+f206			; Test if interupt recieved and print 
+f206 3a 55 f6		    ld a, (gotint)  ; Interupt recieved? 
+f209 b7			    or a 
+f20a ca 1b f2		    jp z, prtnoint  ; no 
+f20d 21 a5 f2		    ld hl, int_msg 
+f210 cd 9b f0		    call asci0pstr 
+f213 21 a5 f2		    ld hl, int_msg 
+f216 cd d6 f0		    call asci1pstr 
+f219 18 0c		    jr prtintend 
+f21b			prtnoint: 
+f21b 21 bd f2		    ld hl, no_int_msg 
+f21e cd 9b f0		    call asci0pstr 
+f221 21 bd f2		    ld hl, no_int_msg 
+f224 cd d6 f0		    call asci1pstr 
+f227			prtintend: 
+f227			 
+f227			; Enable EPROM in low memory 
+f227 3e 00		    ld a, 0 
+f229 d3 40		    out (ROMSEL), a 
+f22b			 
+f22b			; Restore Bank Area 
+f22b 3e 40		    ld a, 0x40 
+f22d 01 39 00		    ld bc, BBR 
+f230 ed 79		    out (c), a 
+f232			 
+f232 c3 3b f1		    jp testloop 
+f235			 
+f235			asci0txt: 
+f235 ..			    db "ASCI port 0 " 
+f241 00			    db 0 
+f242			asci1txt: 
+f242 ..			    db "ASCI port 1 " 
+f24e 00			    db 0 
+f24f			 
+f24f			indicator: 
+f24f .. 2f 2d 5c	    db '|', '/', '-', '\\' 
+f253			 
+f253			built: 
+f253 ..			    db " Test program for Z180 computer v1.0" 
+f277			    include "tbuilt180.z80" 
+f277 ..			    db ", built 2021-08-30 16:17" 
 # End of file tbuilt180.z80
-f23c .. 0a		    db '\r', '\n' 
-f23e 00			    db 0 
-f23f			 
-f23f			inptxt: 
-f23f ..			    db " <- was recieved" 
-f24f .. 0a		    db '\r', '\n' 
-f251 00			    db 0 
-f252			 
-f252			; RAM test table 
-f252			ramtsttab: 
-f252 ec f2		    dw ramtxt0  ;test message, end of table if NUL 
-f254 00			    db 0x00     ;BBR 
-f255 00 00		    dw 0x0000   ;logical test start address 
-f257 00 f0		    dw 0xf000   ;size of RAM block to test 
-f259			 
-f259 10 f3		    dw ramtxt1  ;test message 
-f25b 0e			    db 0x0e     ;BBR 
-f25c 00 10		    dw 0x1000   ;logical test start address 
-f25e 00 e0		    dw 0xe000   ;size of RAM block to test 
-f260			 
-f260 34 f3		    dw ramtxt2  ;test message 
-f262 1c			    db 0x1c     ;BBR 
-f263 00 10		    dw 0x1000   ;logical test start address 
-f265 00 e0		    dw 0xe000   ;size of RAM block to test 
-f267			 
-f267 58 f3		    dw ramtxt3  ;test message 
-f269 2a			    db 0x2a     ;BBR 
-f26a 00 10		    dw 0x1000   ;logical test start address 
-f26c 00 e0		    dw 0xe000   ;size of RAM block to test 
-f26e			 
-f26e 7c f3		    dw ramtxt4  ;test message 
-f270 38			    db 0x38     ;BBR 
-f271 00 10		    dw 0x1000   ;logical test start address 
-f273 00 e0		    dw 0xe000   ;size of RAM block to test 
-f275			 
-f275 a0 f3		    dw ramtxt5  ;test message 
-f277 46			    db 0x46     ;BBR 
-f278 00 10		    dw 0x1000   ;logical test start address 
-f27a 00 e0		    dw 0xe000   ;size of RAM block to test 
-f27c			 
-f27c c4 f3		    dw ramtxt6  ;test message 
-f27e 54			    db 0x54     ;BBR 
-f27f 00 10		    dw 0x1000   ;logical test start address 
-f281 00 e0		    dw 0xe000   ;size of RAM block to test 
-f283			 
-f283 e8 f3		    dw ramtxt7  ;test message 
-f285 62			    db 0x62     ;BBR 
-f286 00 10		    dw 0x1000   ;logical test start address 
-f288 00 e0		    dw 0xe000   ;size of RAM block to test 
-f28a			 
-f28a 0c f4		    dw ramtxt8  ;test message 
-f28c 70			    db 0x70     ;BBR 
-f28d 00 10		    dw 0x1000   ;logical test start address 
-f28f 00 e0		    dw 0xe000   ;size of RAM block to test 
-f291			 
-f291 30 f4		    dw ramtxt9  ;test message 
-f293 7e			    db 0x7e     ;BBR 
-f294 00 10		    dw 0x1000   ;logical test start address 
-f296 00 e0		    dw 0xe000   ;size of RAM block to test 
-f298			 
-f298 54 f4		    dw ramtxt10 ;test message 
-f29a 8c			    db 0x8c     ;BBR 
-f29b 00 10		    dw 0x1000   ;logical test start address 
-f29d 00 e0		    dw 0xe000   ;size of RAM block to test 
-f29f			 
-f29f 78 f4		    dw ramtxt11 ;test message 
-f2a1 9a			    db 0x9a     ;BBR 
-f2a2 00 10		    dw 0x1000   ;logical test start address 
-f2a4 00 e0		    dw 0xe000   ;size of RAM block to test 
-f2a6			 
-f2a6 9c f4		    dw ramtxt12 ;test message 
-f2a8 a8			    db 0xa8     ;BBR 
-f2a9 00 10		    dw 0x1000   ;logical test start address 
-f2ab 00 e0		    dw 0xe000   ;size of RAM block to test 
-f2ad			 
-f2ad c0 f4		    dw ramtxt13 ;test message 
-f2af b6			    db 0xb6     ;BBR 
-f2b0 00 10		    dw 0x1000   ;logical test start address 
-f2b2 00 e0		    dw 0xe000   ;size of RAM block to test 
-f2b4			 
-f2b4 e4 f4		    dw ramtxt14 ;test message 
-f2b6 c4			    db 0xc4     ;BBR 
-f2b7 00 10		    dw 0x1000   ;logical test start address 
-f2b9 00 e0		    dw 0xe000   ;size of RAM block to test 
-f2bb			 
-f2bb 08 f5		    dw ramtxt15 ;test message 
-f2bd d2			    db 0xd2     ;BBR 
-f2be 00 10		    dw 0x1000   ;logical test start address 
-f2c0 00 e0		    dw 0xe000   ;size of RAM block to test 
-f2c2			 
-f2c2 2c f5		    dw ramtxt16 ;test message 
-f2c4 e0			    db 0xe0     ;BBR 
-f2c5 00 10		    dw 0x1000   ;logical test start address 
-f2c7 00 e0		    dw 0xe000   ;size of RAM block to test 
-f2c9			 
-f2c9 50 f5		    dw ramtxt17 ;test message 
-f2cb ee			    db 0xee     ;BBR 
-f2cc 00 10		    dw 0x1000   ;logical test start address 
-f2ce 00 e0		    dw 0xe000   ;size of RAM block to test 
-f2d0			 
-f2d0 74 f5		    dw ramtxt18 ;test message 
-f2d2 fc			    db 0xfc     ;BBR 
-f2d3 00 10		    dw 0x1000   ;logical test start address 
-f2d5 00 20		    dw 0x2000   ;size of RAM block to test 
-f2d7			 
-f2d7 00 00		    dw 0        ;end of table 
-f2d9			 
-f2d9			ramtxtok: 
-f2d9 ..			    db " - OK" 
-f2de .. 0a		    db '\r', '\n' 
-f2e0 00			    db 0 
-f2e1			 
-f2e1			ramtxterr: 
-f2e1 ..			    db " - ERROR" 
-f2e9 .. 0a		    db '\r', '\n' 
-f2eb 00			    db 0 
-f2ec			 
-f2ec			ramtxt0: 
-f2ec ..			    db "Test physical RAM 0x00000 - 0x0efff" 
-f30f 00			    db 0 
+f28f .. 0a		    db '\r', '\n' 
+f291 00			    db 0 
+f292			 
+f292			inptxt: 
+f292 ..			    db " <- was recieved" 
+f2a2 .. 0a		    db '\r', '\n' 
+f2a4 00			    db 0 
+f2a5			 
+f2a5			int_msg: 
+f2a5 .. 00		    db "Interupt from timer 0\r\n", 0 
+f2bd			no_int_msg: 
+f2bd .. 00		    db "No interupt from timer 0\r\n", 0 
+f2d8			 
+f2d8			; RAM test table 
+f2d8			ramtsttab: 
+f2d8 72 f3		    dw ramtxt0  ;test message, end of table if NUL 
+f2da 00			    db 0x00     ;BBR 
+f2db 00 00		    dw 0x0000   ;logical test start address 
+f2dd 00 f0		    dw 0xf000   ;size of RAM block to test 
+f2df			 
+f2df 96 f3		    dw ramtxt1  ;test message 
+f2e1 0e			    db 0x0e     ;BBR 
+f2e2 00 10		    dw 0x1000   ;logical test start address 
+f2e4 00 e0		    dw 0xe000   ;size of RAM block to test 
+f2e6			 
+f2e6 ba f3		    dw ramtxt2  ;test message 
+f2e8 1c			    db 0x1c     ;BBR 
+f2e9 00 10		    dw 0x1000   ;logical test start address 
+f2eb 00 e0		    dw 0xe000   ;size of RAM block to test 
+f2ed			 
+f2ed de f3		    dw ramtxt3  ;test message 
+f2ef 2a			    db 0x2a     ;BBR 
+f2f0 00 10		    dw 0x1000   ;logical test start address 
+f2f2 00 e0		    dw 0xe000   ;size of RAM block to test 
+f2f4			 
+f2f4 02 f4		    dw ramtxt4  ;test message 
+f2f6 38			    db 0x38     ;BBR 
+f2f7 00 10		    dw 0x1000   ;logical test start address 
+f2f9 00 e0		    dw 0xe000   ;size of RAM block to test 
+f2fb			 
+f2fb 26 f4		    dw ramtxt5  ;test message 
+f2fd 46			    db 0x46     ;BBR 
+f2fe 00 10		    dw 0x1000   ;logical test start address 
+f300 00 e0		    dw 0xe000   ;size of RAM block to test 
+f302			 
+f302 4a f4		    dw ramtxt6  ;test message 
+f304 54			    db 0x54     ;BBR 
+f305 00 10		    dw 0x1000   ;logical test start address 
+f307 00 e0		    dw 0xe000   ;size of RAM block to test 
+f309			 
+f309 6e f4		    dw ramtxt7  ;test message 
+f30b 62			    db 0x62     ;BBR 
+f30c 00 10		    dw 0x1000   ;logical test start address 
+f30e 00 e0		    dw 0xe000   ;size of RAM block to test 
 f310			 
-f310			ramtxt1: 
-f310 ..			    db "Test physical RAM 0x0f000 - 0x1cfff" 
-f333 00			    db 0 
-f334			 
-f334			ramtxt2: 
-f334 ..			    db "Test physical RAM 0x1d000 - 0x2afff" 
-f357 00			    db 0 
-f358			 
-f358			ramtxt3: 
-f358 ..			    db "Test physical RAM 0x2b000 - 0x38fff" 
-f37b 00			    db 0 
-f37c			 
-f37c			ramtxt4: 
-f37c ..			    db "Test physical RAM 0x39000 - 0x46fff" 
-f39f 00			    db 0 
-f3a0			 
-f3a0			ramtxt5: 
-f3a0 ..			    db "Test physical RAM 0x47000 - 0x54fff" 
-f3c3 00			    db 0 
-f3c4			 
-f3c4			ramtxt6: 
-f3c4 ..			    db "Test physical RAM 0x55000 - 0x62fff" 
-f3e7 00			    db 0 
-f3e8			 
-f3e8			ramtxt7: 
-f3e8 ..			    db "Test physical RAM 0x63000 - 0x70fff" 
-f40b 00			    db 0 
-f40c			 
-f40c			ramtxt8: 
-f40c ..			    db "Test physical RAM 0x71000 - 0x7efff" 
-f42f 00			    db 0 
-f430			 
-f430			ramtxt9: 
-f430 ..			    db "Test physical RAM 0x7f000 - 0x8cfff" 
-f453 00			    db 0 
-f454			 
-f454			ramtxt10: 
-f454 ..			    db "Test physical RAM 0x8d000 - 0x9afff" 
-f477 00			    db 0 
-f478			 
-f478			ramtxt11: 
-f478 ..			    db "Test physical RAM 0x9b000 - 0xa8fff" 
-f49b 00			    db 0 
-f49c			 
-f49c			ramtxt12: 
-f49c ..			    db "Test physical RAM 0xa9000 - 0xb6fff" 
-f4bf 00			    db 0 
-f4c0			 
-f4c0			ramtxt13: 
-f4c0 ..			    db "Test physical RAM 0xb7000 - 0xc4fff" 
-f4e3 00			    db 0 
-f4e4			 
-f4e4			ramtxt14: 
-f4e4 ..			    db "Test physical RAM 0xc5000 - 0xd2fff" 
-f507 00			    db 0 
-f508			 
-f508			ramtxt15: 
-f508 ..			    db "Test physical RAM 0xd3000 - 0xe0fff" 
-f52b 00			    db 0 
-f52c			 
-f52c			ramtxt16: 
-f52c ..			    db "Test physical RAM 0xe1000 - 0xeefff" 
-f54f 00			    db 0 
-f550			 
-f550			ramtxt17: 
-f550 ..			    db "Test physical RAM 0xef000 - 0xfcfff" 
-f573 00			    db 0 
-f574			 
-f574			ramtxt18: 
-f574 ..			    db "Test physical RAM 0xfd000 - 0xfefff" 
-f597 00			    db 0 
-f598			 
-f598			; The rest of RAM is for variables 
-f598			prgend: 
-f598			 
-f598			indindex: 
-f598 00			    db 0 
-f599			 
-f599			cspattern: 
-f599 00			    db 0 
-f59a			 
-f59a			ramerr: 
-f59a 00			    db 0 
-f59b			 
+f310 92 f4		    dw ramtxt8  ;test message 
+f312 70			    db 0x70     ;BBR 
+f313 00 10		    dw 0x1000   ;logical test start address 
+f315 00 e0		    dw 0xe000   ;size of RAM block to test 
+f317			 
+f317 b6 f4		    dw ramtxt9  ;test message 
+f319 7e			    db 0x7e     ;BBR 
+f31a 00 10		    dw 0x1000   ;logical test start address 
+f31c 00 e0		    dw 0xe000   ;size of RAM block to test 
+f31e			 
+f31e da f4		    dw ramtxt10 ;test message 
+f320 8c			    db 0x8c     ;BBR 
+f321 00 10		    dw 0x1000   ;logical test start address 
+f323 00 e0		    dw 0xe000   ;size of RAM block to test 
+f325			 
+f325 fe f4		    dw ramtxt11 ;test message 
+f327 9a			    db 0x9a     ;BBR 
+f328 00 10		    dw 0x1000   ;logical test start address 
+f32a 00 e0		    dw 0xe000   ;size of RAM block to test 
+f32c			 
+f32c 22 f5		    dw ramtxt12 ;test message 
+f32e a8			    db 0xa8     ;BBR 
+f32f 00 10		    dw 0x1000   ;logical test start address 
+f331 00 e0		    dw 0xe000   ;size of RAM block to test 
+f333			 
+f333 46 f5		    dw ramtxt13 ;test message 
+f335 b6			    db 0xb6     ;BBR 
+f336 00 10		    dw 0x1000   ;logical test start address 
+f338 00 e0		    dw 0xe000   ;size of RAM block to test 
+f33a			 
+f33a 6a f5		    dw ramtxt14 ;test message 
+f33c c4			    db 0xc4     ;BBR 
+f33d 00 10		    dw 0x1000   ;logical test start address 
+f33f 00 e0		    dw 0xe000   ;size of RAM block to test 
+f341			 
+f341 8e f5		    dw ramtxt15 ;test message 
+f343 d2			    db 0xd2     ;BBR 
+f344 00 10		    dw 0x1000   ;logical test start address 
+f346 00 e0		    dw 0xe000   ;size of RAM block to test 
+f348			 
+f348 b2 f5		    dw ramtxt16 ;test message 
+f34a e0			    db 0xe0     ;BBR 
+f34b 00 10		    dw 0x1000   ;logical test start address 
+f34d 00 e0		    dw 0xe000   ;size of RAM block to test 
+f34f			 
+f34f d6 f5		    dw ramtxt17 ;test message 
+f351 ee			    db 0xee     ;BBR 
+f352 00 10		    dw 0x1000   ;logical test start address 
+f354 00 e0		    dw 0xe000   ;size of RAM block to test 
+f356			 
+f356 fa f5		    dw ramtxt18 ;test message 
+f358 fc			    db 0xfc     ;BBR 
+f359 00 10		    dw 0x1000   ;logical test start address 
+f35b 00 20		    dw 0x2000   ;size of RAM block to test 
+f35d			 
+f35d 00 00		    dw 0        ;end of table 
+f35f			 
+f35f			ramtxtok: 
+f35f ..			    db " - OK" 
+f364 .. 0a		    db '\r', '\n' 
+f366 00			    db 0 
+f367			 
+f367			ramtxterr: 
+f367 ..			    db " - ERROR" 
+f36f .. 0a		    db '\r', '\n' 
+f371 00			    db 0 
+f372			 
+f372			ramtxt0: 
+f372 ..			    db "Test physical RAM 0x00000 - 0x0efff" 
+f395 00			    db 0 
+f396			 
+f396			ramtxt1: 
+f396 ..			    db "Test physical RAM 0x0f000 - 0x1cfff" 
+f3b9 00			    db 0 
+f3ba			 
+f3ba			ramtxt2: 
+f3ba ..			    db "Test physical RAM 0x1d000 - 0x2afff" 
+f3dd 00			    db 0 
+f3de			 
+f3de			ramtxt3: 
+f3de ..			    db "Test physical RAM 0x2b000 - 0x38fff" 
+f401 00			    db 0 
+f402			 
+f402			ramtxt4: 
+f402 ..			    db "Test physical RAM 0x39000 - 0x46fff" 
+f425 00			    db 0 
+f426			 
+f426			ramtxt5: 
+f426 ..			    db "Test physical RAM 0x47000 - 0x54fff" 
+f449 00			    db 0 
+f44a			 
+f44a			ramtxt6: 
+f44a ..			    db "Test physical RAM 0x55000 - 0x62fff" 
+f46d 00			    db 0 
+f46e			 
+f46e			ramtxt7: 
+f46e ..			    db "Test physical RAM 0x63000 - 0x70fff" 
+f491 00			    db 0 
+f492			 
+f492			ramtxt8: 
+f492 ..			    db "Test physical RAM 0x71000 - 0x7efff" 
+f4b5 00			    db 0 
+f4b6			 
+f4b6			ramtxt9: 
+f4b6 ..			    db "Test physical RAM 0x7f000 - 0x8cfff" 
+f4d9 00			    db 0 
+f4da			 
+f4da			ramtxt10: 
+f4da ..			    db "Test physical RAM 0x8d000 - 0x9afff" 
+f4fd 00			    db 0 
+f4fe			 
+f4fe			ramtxt11: 
+f4fe ..			    db "Test physical RAM 0x9b000 - 0xa8fff" 
+f521 00			    db 0 
+f522			 
+f522			ramtxt12: 
+f522 ..			    db "Test physical RAM 0xa9000 - 0xb6fff" 
+f545 00			    db 0 
+f546			 
+f546			ramtxt13: 
+f546 ..			    db "Test physical RAM 0xb7000 - 0xc4fff" 
+f569 00			    db 0 
+f56a			 
+f56a			ramtxt14: 
+f56a ..			    db "Test physical RAM 0xc5000 - 0xd2fff" 
+f58d 00			    db 0 
+f58e			 
+f58e			ramtxt15: 
+f58e ..			    db "Test physical RAM 0xd3000 - 0xe0fff" 
+f5b1 00			    db 0 
+f5b2			 
+f5b2			ramtxt16: 
+f5b2 ..			    db "Test physical RAM 0xe1000 - 0xeefff" 
+f5d5 00			    db 0 
+f5d6			 
+f5d6			ramtxt17: 
+f5d6 ..			    db "Test physical RAM 0xef000 - 0xfcfff" 
+f5f9 00			    db 0 
+f5fa			 
+f5fa			ramtxt18: 
+f5fa ..			    db "Test physical RAM 0xfd000 - 0xfefff" 
+f61d 00			    db 0 
+f61e			 
+f61e			; Timer interrupt 
+f61e			inttimer: 
+f61e f5			    push af 
+f61f c5			    push bc 
+f620 3e 01		    ld a, 1 
+f622 32 55 f6		    ld (gotint), a 
+f625 01 10 00		    ld bc, TCR 
+f628 ed 78		    in a, (c) 
+f62a 01 0c 00		    ld bc, TMDR0L 
+f62d ed 78		    in a, (c) 
+f62f 01 0d 00		    ld bc, TMDR0H 
+f632 ed 78		    in a, (c) 
+f634 c1			    pop bc 
+f635 f1			    pop af 
+f636 fb			    ei 
+f637 ed 4d		    reti 
+f639			 
+f639			; Interrupt routines, dummy for unused devices 
+f639			intdummy: 
+f639 fb			    ei 
+f63a ed 4d		    reti 
+f63c			 
+f63c			; Interupt vectors for internal devices 
+f63c			; make sure that the block is on an even 32 byte address 
+f63c			ivstart: 
+f63c			if ivstart & 0x001f 
+f63c 0x00...		    ds 32 - (ivstart & 0x001f), 0x00 
+f640			endif 
+f640			 
+f640			ivblock: 
+f640 39 f6		ivint1:    dw intdummy 
+f642 39 f6		ivint2:    dw intdummy 
+f644 1e f6		ivprt0:    dw inttimer 
+f646 39 f6		ivprt1:    dw intdummy 
+f648 39 f6		ivdma0:    dw intdummy 
+f64a 39 f6		ivdma1:    dw intdummy 
+f64c 39 f6		ivcsio:    dw intdummy 
+f64e 39 f6		ivasci0:   dw intdummy 
+f650 39 f6		ivasci1:   dw intdummy 
+f652			 
+f652			prgend:      ;end address for copied code and constants from EPROM to RAM 
+f652			 
+f652			; The rest of RAM is for variables and stack 
+f652			 
+f652			indindex:    ;indicator index for printout 
+f652 00			    db 0 
+f653			 
+f653			cspattern:   ;rotating bits for 74LS74 CS output 
+f653 00			    db 0 
+f654			 
+f654			ramerr:      ;RAM test error flag 
+f654 00			    db 0 
+f655			 
+f655			gotint:      ;interrupt indicator 
+f655 00			    db 0 
+f656			 
 # End of file test180.z80
-f59b
+f656

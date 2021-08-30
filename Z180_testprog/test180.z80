@@ -1,5 +1,6 @@
-; Test program for the Z180 computer
 ; test180.z80
+;
+; Test program for the Z180 computer
 ;
 ; testing:
 ;   - simple MMU setup
@@ -13,8 +14,13 @@
 ;   - test 74LS74 select outputs
 ;   - test all RAM using MMU and MEMSEL
 ;   - set no wait states for RAM access
-; todo
 ;   - interupt test
+;
+; You are free to use, modify, and redistribute
+; this source code. The software is provided "as is",
+; without warranty of any kind.
+; Hastily Cobbled Together 2021 by Hans-Ake Lund.
+;
 
 ; Internal ports
 
@@ -30,8 +36,23 @@ TDR1:   equ 0x0007  ;ASCI Transmit Data Register 1
 RDR0:   equ 0x0008  ;ASCI Receive Data FIFO 0
 RDR1:   equ 0x0009  ;ASCI Receive Data FIFO 1
 
+; Timer Registers
+TMDR0L: equ 0x000c  ;Timer Data Register Channel 0L
+TMDR0H: equ 0x000d  ;Timer Data Register Channel 0H
+RLDR0L: equ 0x000e  ;Timer Reload Register 0L
+RLDR0H: equ 0x000f  ;Timer Reload Register 0H
+TCR:    equ 0x0010  ;Timer Control Register
+TMDR1L: equ 0x0014  ;Timer Data Register Channel 1L
+TMDR1H: equ 0x0015  ;Timer Data Register Channel 1H
+RLDR1L: equ 0x0016  ;Timer Reload Register 1L
+RLDR1H: equ 0x0017  ;Timer Reload Register 1H
+
 ; DMA/WAIT Control Register
 DCNTL:  equ 0x0032  ;DMA/WAIT Control Register
+
+; Interrupt Control
+IL:     equ 0x0033  ;Interrupt Vector Low Register
+ITC:    equ 0x0034  ;Int/TRAP Control Register
 
 ; MMU Registers
 CBR:    equ 0x0038  ;MMU Common Base Register
@@ -104,7 +125,7 @@ cploop:
     dec bc
     jp cploop
 cpend:
-    jp HIRAM	; jump to the copied code
+    jp prgstart	; jump to the copied code
 
 prgineprom:
 
@@ -141,11 +162,41 @@ prgstart:
     ld b, 2
     call delays
 
-    ld a, 0
+    ld a, 0         ;set print indicator index
     ld (indindex), a
 
-    ld a, 00010001b
+    ld a, 00010001b ;set rotating bits for 74LS74 CS output
     ld (cspattern), a
+
+    ld a, 0          ;reset interrupt indicator
+    ld (gotint), a
+
+; Disable all external interrupts
+    ld bc, ITC
+    ld a, 00000000b
+    out (c), a
+
+; Initialize timer 0
+    ld bc, TMDR0L
+    and 0xff         ; set low timer 0
+    out (c), a
+    ld bc, TMDR0H
+    and 0xef         ; set high timer 0
+    out (c), a
+
+    ld bc, TCR
+    ld a, 00010001b  ; bit 4 TIE0 (Timer Interrupt Enable 0)
+                     ; bit 0 TDE0 (Timer Down Count Enable 0)
+    out (c), a
+
+; Initialize internal interupts and enable
+intinit:
+    ld a, ivblock / 256
+    ld i, a
+    ld a, ivblock & 0x00ff
+    ld bc, IL
+    out (c), a
+    ei
 
     jp testloop
 
@@ -328,7 +379,7 @@ delay2loop:
 ; reg hl: start address of test
 ; reg a; returns 0 if RAM ok, 1 if error
 ramtest:
-    ld a,0		; reset error flag
+    ld a,0		; reset RAM test error flag
     ld (ramerr),a
 ramtstlop:
     ld e,0x00
@@ -459,6 +510,22 @@ ramtnxt:
     jr ramtloop
 ramtend:
 
+; Test if interupt recieved and print
+    ld a, (gotint)  ; Interupt recieved?
+    or a
+    jp z, prtnoint  ; no
+    ld hl, int_msg
+    call asci0pstr
+    ld hl, int_msg
+    call asci1pstr
+    jr prtintend
+prtnoint:
+    ld hl, no_int_msg
+    call asci0pstr
+    ld hl, no_int_msg
+    call asci1pstr
+prtintend:
+
 ; Enable EPROM in low memory
     ld a, 0
     out (ROMSEL), a
@@ -481,7 +548,7 @@ indicator:
     db '|', '/', '-', '\\'
 
 built:
-    db " Test program for Z180 computer"
+    db " Test program for Z180 computer v1.0"
     include "tbuilt180.z80"
     db '\r', '\n'
     db 0
@@ -490,6 +557,11 @@ inptxt:
     db " <- was recieved"
     db '\r', '\n'
     db 0
+
+int_msg:
+    db "Interupt from timer 0\r\n", 0
+no_int_msg:
+    db "No interupt from timer 0\r\n", 0
 
 ; RAM test table
 ramtsttab:
@@ -676,15 +748,59 @@ ramtxt18:
     db "Test physical RAM 0xfd000 - 0xfefff"
     db 0
 
-; The rest of RAM is for variables
-prgend:
+; Timer interrupt
+inttimer:
+    push af
+    push bc
+    ld a, 1
+    ld (gotint), a
+    ld bc, TCR
+    in a, (c)
+    ld bc, TMDR0L
+    in a, (c)
+    ld bc, TMDR0H
+    in a, (c)
+    pop bc
+    pop af
+    ei
+    reti
 
-indindex:
+; Interrupt routines, dummy for unused devices
+intdummy:
+    ei
+    reti
+
+; Interupt vectors for internal devices
+; make sure that the block is on an even 32 byte address
+ivstart:
+if ivstart & 0x001f
+    ds 32 - (ivstart & 0x001f), 0x00
+endif
+
+ivblock:
+ivint1:    dw intdummy
+ivint2:    dw intdummy
+ivprt0:    dw inttimer
+ivprt1:    dw intdummy
+ivdma0:    dw intdummy
+ivdma1:    dw intdummy
+ivcsio:    dw intdummy
+ivasci0:   dw intdummy
+ivasci1:   dw intdummy
+
+prgend:      ;end address for copied code and constants from EPROM to RAM
+
+; The rest of RAM is for variables and stack
+
+indindex:    ;indicator index for printout
     db 0
 
-cspattern:
+cspattern:   ;rotating bits for 74LS74 CS output
     db 0
 
-ramerr:
+ramerr:      ;RAM test error flag
+    db 0
+
+gotint:      ;interrupt indicator
     db 0
 
