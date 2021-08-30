@@ -100,3 +100,6 @@ The Z180 CPU is blinking another LED and outputs text on serial port 0 and 1. Th
 any character input on the serial ports.
 
 The testprogram is copied to RAM and running from there.
+
+SPI device select and reset of AVR tested.
+Timer interrupt tested.
