@@ -1,25 +1,24 @@
 /*  z180cpmon.c
- *  Boot, test and upload functions.
+ *
+ *  Main program for boot, test and upload functions.
  *  Eventually also SD card test program and CP/M.
  *
- *  Code for my DIY Z180 Computer. This program
- *  is compiled with Whitesmiths/COSMIC
+ *  Part of the boot code for my DIY Z180 Computer.
+ *  This program is compiled with Whitesmiths/COSMIC
  *  C compiler for Z80/Z180.
  *
  *  You are free to use, modify, and redistribute
  *  this source code. No warranties are given.
- *  Hastily Cobbled Together 2021 and 2022
+ *  Hastily Cobbled Together 2021, 2022 and 2023
  *  by Hans-Ake Lund
  */
 
 #include <std.h>
+#include "z180sd.h"
 
 /* Program name and version */
 #define PRGNAME "z180cpmon "
-#define VERSION "version 2.3, "
-
-#define LOADADR 0xb000     /* Address in high RAM where to copy and execute uploader code */
-#define TESTADR 0xf000     /* Address in high RAM where to copy and execute test code */
+#define VERSION "version 2.6, "
 
 /* External data */
 extern const char upload[];     /* Upload program binary and size */
@@ -28,17 +27,17 @@ extern const char z180test[];   /* Test program binary and size */
 extern const int z180test_size;
 extern const int binstart;      /* Uploaded program header */
 extern const int binsize;
-extern const char builddate[]; /* Build date and time */
+extern const char builddate[];  /* Build date and time */
 
 /* RAM/EPROM probe */
 const int ramprobe = 0;
 int *rampptr;
 
-/* Executing in RAM or EPROM
+/* Test and print if executing in RAM or EPROM
  */
 void execin()
     {
-    printf("\nProgram is executed in: ");
+    printf("\nProgram is executing in: ");
     rampptr = &ramprobe;
     *rampptr = 1; /* try to change const */
     if (ramprobe)
@@ -51,12 +50,12 @@ void execin()
 /* Get line from keyboard
  * edit line with BS
  * returns when CR or Ctrl-C is entered
- * return value is length of entered string
+ * return value is the length of the entered string
  */
 int getkline(char *txtinp, int bufsize)
     {
-    int ncharin;
     char charin;
+    int ncharin;
 
     for (ncharin = 0; ncharin < (bufsize - 1); ncharin++)
         {
@@ -89,57 +88,6 @@ int getkline(char *txtinp, int bufsize)
     return (ncharin);
     }
 
-/* Print data in hex and ASCII */
-void datprt(unsigned char *prtbuf, unsigned int prtbase, int dumprows)
-    {
-    /* Variables used for "pretty-print" */
-    int allzero, dmpline, dotprted, lastallz, nbytes;
-    unsigned char *prtptr;
-
-    prtptr = prtbuf;
-    dotprted = NO;
-    lastallz = NO;
-    for (dmpline = 0; dmpline < dumprows; dmpline++)
-        {
-        /* test if all 16 bytes are 0x00 */
-        allzero = YES;
-        for (nbytes = 0; nbytes < 16; nbytes++)
-            {
-            if (prtptr[nbytes] != 0)
-                allzero = NO;
-            }
-        if (lastallz && allzero && (dmpline != (dumprows -1)))
-            {
-            if (!dotprted)
-                {
-                printf("*\n");
-                dotprted = YES;
-                }
-            }
-        else
-            {
-            dotprted = NO;
-            /* print offset */
-            printf("%04x ", (dmpline * 16) + prtbase);
-            /* print 16 bytes in hex */
-            for (nbytes = 0; nbytes < 16; nbytes++)
-                printf("%02x ", prtptr[nbytes]);
-            /* print these bytes in ASCII if printable */
-            printf(" |");
-            for (nbytes = 0; nbytes < 16; nbytes++)
-                {
-                if ((' ' <= prtptr[nbytes]) && (prtptr[nbytes] < 127))
-                    putchar(prtptr[nbytes]);
-                else
-                    putchar('.');
-                }
-            printf("|\n");
-            }
-        prtptr += 16;
-        lastallz = allzero;
-        }
-    }
-
 /* Monitor main menu
  */
 int main()
@@ -148,18 +96,23 @@ int main()
     int cmdin;
     int dumprows = 16;
     unsigned int dumpadr = 0x0000;
-    unsigned int csidat = 0x00;
-    unsigned int csodat = 0x5a;
     unsigned int exeadr = 0x0000;
-    unsigned int spiidat = 0x00;
-    unsigned int spiodat = 0x5a;
     unsigned int upladr = 0x0000;
+    unsigned char blockno[4];
+    unsigned long inblockno;
 
+    memset(blockno, 0, 4);
+    memset(curblkno, 0, 4);
+    curblkok = NO;               /* No valid currently read SD block */
+    sdinitok = (void *) INITFLG; 
+    *sdinitok = 0;               /* SD card not initialized yet */
+    spideselect();
+    printf("=============================================\n");
     printf(PRGNAME);
     printf(VERSION);
     printf(builddate);
     execin();
-    printf("Header - binstart: 0x%04x, binsize: 0x%04x (%d)\n", binstart, binsize, binsize);
+    printf("Hdr: binstart: 0x%04x, binsize: 0x%04x (%d)\n", binstart, binsize, binsize);
     while (YES) /* forever (until Ctrl-C) */
         {
         printf("cmd (? for help): ");
@@ -178,13 +131,17 @@ int main()
                 printf("  a - set address for upload\n");
                 printf("  d - dump memory content to screen\n");
                 printf("  e - set address for execute\n");
-                printf("  i - CSIO input\n");
-                printf("  o - CSIO output\n");
-                printf("  g - SPI input\n");
-                printf("  s - SPI output\n");
+                printf("  i - initialize SD card\n");
+                printf("  l - print SD card partition layout\n");
+                printf("  n - set/show block #N to read/write\n");
+                printf("  p - print block last read/to write\n");
+                printf("  q - test probe SD card\n");
+                printf("  r - read block #N\n");
+                printf("  s - print SD registers\n");
                 printf("  t - run test program\n");
                 printf("  u - upload code with Xmodem to 0x%04x\n      and execute at: 0x%04x\n",
                        upladr, exeadr);
+                printf("  w - write block #N\n");
                 printf("  Ctrl-C to reload monitor from EPROM\n");
                 break;
             case 'a':
@@ -220,7 +177,7 @@ int main()
                     printf("%d", dumprows);
                     }
                 printf("\n");
-                datprt(dumpadr, dumpadr, dumprows);
+                sddatprt(dumpadr, dumpadr, dumprows);
                 break;
             case 'e':
                 printf(" e - execute address: 0x");
@@ -230,64 +187,95 @@ int main()
                     }
                 else
                     {
-                    printf("%04x", exeadr);
+                    printf("%04x", exeadr);                printf("  i - initialize SD card\n");
                     }
                 printf("\n");
                 break;
             case 'i':
-                setcso(1);
-                csidat = getcsio();
-                setcso(0);
-                printf(" i - CSIO input: 0x%02x\n", csidat);
+                printf(" i - initialize SD card");
+                if (sdinit())
+                    printf(" - ok\n");
+                else
+                    printf(" - not inserted or faulty\n");
                 break;
-            case 'o':
-                printf(" o - CSIO output: 0x");
+            case 'l':
+                printf(" l - print partition layout\n");
+                if (!sdprobe())
+                    {
+                    printf(" - not initialized or inserted or faulty\n");
+                    break;
+                    }
+                sdpartfind();
+                sdpartprint();
+                break;
+            case 'n':
+                printf(" n - block number: ");
                 if (getkline(txtin, sizeof txtin))
                     {
-                    sscanf(txtin, "%x", &csodat);
+                    sscanf(txtin, "%lu", &inblockno);
+                    ul2blk(blockno, inblockno);
                     }
                 else
-                    {
-                    printf("%02x", csodat);
-                    }
+                    printf("%lu", blk2ul(blockno));
                 printf("\n");
-                setcso(1);
-                putcsio(csodat);
-                setcso(0);
                 break;
-            case 'g':
-                setcso(1);
-                spiidat = getspi();
-                setcso(0);
-                printf(" g - SPI input: 0x%02x\n", spiidat);
+            case 'p':
+                printf(" p - print data block %lu\n", blk2ul(curblkno));
+                sddatprt(sdrdbuf, 0x0000, 32);
+                break;
+            case 'q':
+                printf(" q - test if card inserted\n");
+                if (sdprobe())
+                    printf(" - ok\n");
+                else
+                    printf(" - not initialized or inserted or faulty\n");
+                break;
+            case 'r':
+                printf(" r - read block");
+                if (!sdprobe())
+                    {
+                    printf(" - not initialized or inserted or faulty\n");
+                    break;
+                    }
+                if (sdread(sdrdbuf, blockno))
+                    {
+                    printf(" - ok\n");
+                    memcpy(curblkno, blockno, 4);
+                    }
+                else
+                    printf(" - read error\n");
                 break;
             case 's':
-                printf(" s - SPI output: 0x");
-                if (getkline(txtin, sizeof txtin))
-                    {
-                    sscanf(txtin, "%x", &spiodat);
-                    }
-                else
-                    {
-                    printf("%02x", spiodat);
-                    }
-                printf("\n");
-                setcso(1);
-                putspi(spiodat);
-                setcso(0);
+                printf(" s - print SD registers\n");
+                sdprtreg();
                 break;
             case 't':
                 printf(" t - run test program\n");
                 printf("(Test code at: 0x%04x, size: %d)\n", TESTADR, z180test_size);
                 memcpy(TESTADR, z180test, z180test_size);
                 jumpto(TESTADR, 0, 0);
-                break;
+                break; /* not really needed, will never get here */
             case 'u':
                 printf(" %c - upload to 0x%04x and execute at: 0x%04x\n",
                     cmdin, upladr, exeadr);
                 printf("(Uploader code at: 0x%04x, size: %d)\n", LOADADR, upload_size);
                 memcpy(LOADADR, upload, upload_size);
                 jumpto(LOADADR, upladr, exeadr);
+                break; /* not really needed, will never get here */
+            case 'w':
+                printf(" w - write block");
+                if (!sdprobe())
+                    {
+                    printf(" - not initialized or inserted or faulty\n");
+                    break;
+                    }
+                if (sdwrite(sdrdbuf, blockno))
+                    {
+                    printf(" - ok\n");
+                    memcpy(curblkno, blockno, 4);
+                    }
+                else
+                    printf(" - write error\n");
                 break;
             case 0x03: /* Ctrl-C */
                 printf("reloading monitor from EPROM\n");

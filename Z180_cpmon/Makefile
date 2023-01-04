@@ -39,7 +39,25 @@ z180hwinit.o : z180hwinit.s z180.inc
 z180aio.o : z180aio.s z180.inc
 	$(EXECDIR)cx80 -proto $(PROTO) $(ARGS) -dlistcs +o $<
 
+z180sdasm.o : z180sdasm.s
+	$(EXECDIR)cx80 -proto $(PROTO) $(ARGS) -dlistcs +o $<
+
 z180cpmon.o: z180cpmon.c
+	$(EXECDIR)cx80 -proto $(PROTO) $(ARGS) -I "|/opt/wsl/include/v30/" -dlistcs -dnostrict -s +o $<
+
+z180sddrv.o: z180sddrv.c
+	$(EXECDIR)cx80 -proto $(PROTO) $(ARGS) -I "|/opt/wsl/include/v30/" -dlistcs -dnostrict -s +o $<
+
+z180sdrdwr.o: z180sdrdwr.c
+	$(EXECDIR)cx80 -proto $(PROTO) $(ARGS) -I "|/opt/wsl/include/v30/" -dlistcs -dnostrict -s +o $<
+
+z180sddrvprt.o: z180sddrvprt.c
+	$(EXECDIR)cx80 -proto $(PROTO) $(ARGS) -I "|/opt/wsl/include/v30/" -dlistcs -dnostrict -s +o $<
+
+z180sdpart.o: z180sdpart.c
+	$(EXECDIR)cx80 -proto $(PROTO) $(ARGS) -I "|/opt/wsl/include/v30/" -dlistcs -dnostrict -s +o $<
+
+z180sdparprt.o: z180sdparprt.c
 	$(EXECDIR)cx80 -proto $(PROTO) $(ARGS) -I "|/opt/wsl/include/v30/" -dlistcs -dnostrict -s +o $<
 
 z180uplbinc.o: z180uplbinc.c
@@ -58,7 +76,8 @@ z180upload.80: z180upload.o
 z180upload.o: z180upload.s z180.inc
 	$(EXECDIR)x80 -o $@ +l > $(basename $<).ls $<
 
-z180cpmon.80: z180hwinit.o z180aio.o z180cpmon.o z180uplbinc.o z180testbinc.o
+z180cpmon.80: z180hwinit.o z180aio.o z180cpmon.o z180sdasm.o z180sddrv.o z180sdrdwr.o z180sddrvprt.o \
+z180sdpart.o z180sdparprt.o z180uplbinc.o z180testbinc.o
 	date +'const char builddate[] = "built %F %R";' > builddate.c
 	$(EXECDIR)cx80 -proto $(PROTO) $(ARGS) -I "|/opt/wsl/include/v30/" -dlistcs -dnostrict -s +o builddate.c
 	$(EXECDIR)cx80 -proto $(PROTO) $(ARGS) -L$(LIBDIR) -o $@ -v -dmap $^ builddate.o

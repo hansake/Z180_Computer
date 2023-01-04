@@ -7,7 +7,7 @@
 ;
 ; You are free to use, modify, and redistribute
 ; this source code. No warranties are given.
-; Hastily Cobbled Together 2021 and 2022
+; Hastily Cobbled Together 2021, 2022 and 2023
 ; by Hans-Ake Lund
 
 .include "z180.inc"
@@ -16,20 +16,22 @@
 
     .public _out
     .public _in
+    .public _ledon
+    .public _ledoff
     .public _putchar
     .public _getchar
-    .public _putcsio
-    .public _getcsio
     .public _putspi
     .public _getspi
-    .public _setcso
+	.public _spiselect
+	.public _spideselect
     .public _jumpto
     .public _jumptoram
     .public _reload
 
 ; I/O C functions for the Z180 Computer
 ;
-;/* Output byte to i/o port */
+;/* Output byte to i/o port
+; */
 ;void out(unsigned int ioport, unsigned char obyte)
 _out:
     ld c, l         ; i/o port
@@ -40,7 +42,8 @@ _out:
     out (c), a
     ret
 
-;/* Input byte from i/o port */
+;/* Input byte from i/o port
+; */
 ;unsigned char in(unsigned int ioport)
 _in:
     ld c, l         ; i/o port
@@ -50,7 +53,22 @@ _in:
     ld b, 0
     ret
 
-;/* Print character on serial port 0 */
+;/* Status LED on
+; */
+;void ledon()
+_ledon:
+    out(LEDON), a
+    ret
+
+;/* Status LED off
+; */
+;void ledoff()
+_ledoff:
+    out(LEDOFF), a
+    ret
+
+;/* Print character on serial port 0
+; */
 ;int putchar(char pchar)
 _putchar:
     push de
@@ -74,7 +92,8 @@ putnolf:
     pop de
     ret
 
-;/* Get character from serial port 0 */
+;/* Get character from serial port 0
+; */
 ;int getchar()
 _getchar:
     ld bc, STAT0
@@ -85,45 +104,6 @@ getchk:
 
     ld bc, RDR0
     in a, (c)       ; input character
-    ld c, a
-    ld b, 0
-    ret
-
-;/* Output byte on Clocked Serial I/O Port */
-;void putcsio(unsigned char pbyte)
-_putcsio:
-    ld bc, CNTR
-    in a, (c)       ; check that no transmit or reciecve is ongoing
-    and 00110000b   ; test that RE and TE are both 0
-    jr nz, _putcsio
-    ld bc, TRDR
-    out (c), l      ; load output byte
-    ld bc, CNTR
-    in a, (c)
-    or 00010000b    ; set TE
-    out (c), a
-csiosent:
-    in a, (c)
-    and 00010000b   ; test if TE reset
-    jr nz, csiosent ; not yet
-    ret
-
-;/* Input byte from Clocked Serial I/O Port */
-;unsigned int getcsio()
-_getcsio:
-    ld bc, CNTR
-    in a, (c)       ; check that no transmit or reciecve is ongoing
-    and 00110000b   ; test that RE and TE are both 0
-    jr nz, _getcsio
-    in a, (c)
-    or 00100000b    ; set RE
-    out (c), a
-csiorec:
-    in a, (c)
-    and 00100000b   ; test if RE reset
-    jr nz, csiorec  ; not yet
-    ld bc, TRDR
-    in a, (c)       ; get input byte
     ld c, a
     ld b, 0
     ret
@@ -151,7 +131,8 @@ revbits:
     xor l
     ret
 
-;/* Output byte to SPI interface */
+;/* Output byte to SPI interface
+; */
 ;void putspi(unsigned char pbyte)
 _putspi:
     ld bc, CNTR
@@ -172,7 +153,8 @@ spisent:
     jr nz, spisent  ; not yet
     ret
 
-;/* Input byte from SPI interface */
+;/* Input byte from SPI interface
+; */
 ;unsigned char getspi()
 _getspi:
     ld bc, CNTR
@@ -193,14 +175,30 @@ spirec:
     ld b, 0
     ret
 
-;/* Set chip select outputs */
-;void setcso(unsigned char bitsout)
-_setcso:
+;/* Select SPI for SD card 0
+; */
+;void spiselect()
+_spiselect:
     ld bc, CSPORT
-    out (c), l
+    ld a, (csmem)
+    or 001h
+    out (c), a
+    ld (csmem), a
     ret
-    
-;/* Jump to address and put arguments in registers */
+
+;/* Deselect SPI for SD card 0
+; */
+;void spideselect()
+_spideselect:
+    ld bc, CSPORT
+    ld a, (csmem)
+    and 0feh
+    out (c), a
+    ld (csmem), a
+    ret
+
+;/* Jump to address and put arguments in registers
+; */
 ;void jumpto(unsigned int address, unsigned int arg1, unsigned int arg2)
 _jumpto:
     push hl
@@ -216,7 +214,8 @@ _jumpto:
     ld d, (hl)
     jp (ix)         ; jump to address
 
-;/* Jump to address after switching to RAM and put arguments in registers */
+;/* Jump to address after switching to RAM and put arguments in registers
+; */
 ;void jumptoram(unsigned int address, unsigned int arg1, unsigned int arg2)
 _jumptoram: ; copy the jump code to upper RAM before switching to lower RAM
     push hl
@@ -242,7 +241,8 @@ jumpram:
     jp (ix)         ; jump to address
 jumpramend:
 
-;/* Reload program from EPROM */
+;/* Reload program from EPROM
+; */
 ;void reload()
 _reload:    ; copy the jump code to upper RAM before switching to EPROM
     push hl
@@ -260,6 +260,10 @@ ereload:
 ereloadend:
 
     .psect  _data
+
+; Chip select latch value
+csmem:
+    .byte 00h
 
 ; RAM area to where jump code is placed
 ramjmpcode:
