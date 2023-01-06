@@ -256,7 +256,7 @@ _reload:    ; copy the jump code to upper RAM before switching to EPROM
 ;Code fragment to copy to RAM
 ereload:
     out (ROMSEL),a ; select EPROM in lower 32KB logical address range
-    jp 0000h       ;jump to start of EPROM
+    jp 0000h       ; jump to start of EPROM
 ereloadend:
 
     .psect  _data

@@ -15,16 +15,21 @@
 
 #include <std.h>
 #include "z180sd.h"
+/* Header file of BIOS addresses created from the Makefile
+ */
+#include "cpmbiosadr.h"
 
 /* Program name and version */
 #define PRGNAME "z180cpmon "
-#define VERSION "version 2.6, "
+#define VERSION "version 3.0, "
 
 /* External data */
 extern const char upload[];     /* Upload program binary and size */
 extern const int upload_size;
 extern const char z180test[];   /* Test program binary and size */
 extern const int z180test_size;
+extern const char cpmsys[];     /* CP/M program binary and size */
+extern const int cpmsys_size;
 extern const int binstart;      /* Uploaded program header */
 extern const int binsize;
 extern const char builddate[];  /* Build date and time */
@@ -106,6 +111,7 @@ int main()
     curblkok = NO;               /* No valid currently read SD block */
     sdinitok = (void *) INITFLG; 
     *sdinitok = 0;               /* SD card not initialized yet */
+    byteblkadr = (void *) SEBYFLG;
     spideselect();
     printf("=============================================\n");
     printf(PRGNAME);
@@ -129,6 +135,7 @@ int main()
                 printf("Commands:\n");
                 printf("  ? - help\n");
                 printf("  a - set address for upload\n");
+                printf("  c - boot CP/M from EPROM\n");
                 printf("  d - dump memory content to screen\n");
                 printf("  e - set address for execute\n");
                 printf("  i - initialize SD card\n");
@@ -156,6 +163,27 @@ int main()
                     printf("%04x", upladr);
                     }
                 printf("\n");
+                break;
+            case 'c':
+                printf(" c - boot CP/M from EPROM\n");
+                printf("  but first initialize SD card ");
+                if (sdinit())
+                    printf(" - ok\n");
+                else
+                    {
+                    printf(" - not inserted or faulty\n");
+                    break;
+                    }
+                printf("  and then find and print partition layout\n");
+                if (!sdprobe())
+                    {
+                    printf(" - not initialized or inserted or faulty\n");
+                    break;
+                    }
+                sdpartfind();
+                sdpartprint();
+                memcpy(CCPADR, cpmsys, cpmsys_size);
+                jumptoram(BIOSADR);
                 break;
             case 'd':
                 printf(" d - dump memory content starting at: 0x");

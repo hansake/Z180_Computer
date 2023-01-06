@@ -75,32 +75,19 @@ z180hwinit:
     out (c), a
 
 ; Initialize Clocked Serial I/O Port
-    ld a, 00000011b
+    ld a, 00000001b
             ; bit 7 = 0:  EF - End Flag
             ; bit 6 = 0:  EIE - End Interrupt Enable - disabled
             ; bit 5 = 0:  RE - Receive Enable - disabled
             ; bit 4 = 0:  TE - Transmit Enable - disabled
-            ; bit 2 - 0 = 011:  SS2, 1, 0 - Speed Select 2, 1, 0
-            ; divide ratio: 160
+            ; bit 2 - 0 = 001:  SS2, 1, 0 - Speed Select 2, 1, 0
+            ;     divide ratio: 40
     ld bc, CNTR
     out (c), a
 
 ; Disable all external interrupts
     ld bc, ITC
     ld a, 00000000b
-    out (c), a
-
-; Initialize timer 0
-    ld bc, TMDR0L
-    and 0ffh           ; set low byte, timer 0
-    out (c), a
-    ld bc, TMDR0H
-    and 0efh           ; set high byte, timer 0
-    out (c), a
-
-    ld bc, TCR
-    ld a, 00010001b    ; bit 4 TIE0 (Timer Interrupt Enable, timer 0)
-                       ; bit 0 TDE0 (Timer Down Count Enable, timer 0)
     out (c), a
 
     out(LEDOFF), a     ; status LED off

@@ -34,6 +34,19 @@ prgstart:
     ; the hardware is supposed to be initialized by the
     ; program that is uploading this code
 
+; Initialize timer 0
+    ld bc, TMDR0L
+    and 0ffh           ; set low byte, timer 0
+    out (c), a
+    ld bc, TMDR0H
+    and 0efh           ; set high byte, timer 0
+    out (c), a
+
+    ld bc, TCR
+    ld a, 00010001b    ; bit 4 TIE0 (Timer Interrupt Enable, timer 0)
+                       ; bit 0 TDE0 (Timer Down Count Enable, timer 0)
+    out (c), a
+
 ; Initialize internal interupts and enable
 intinit:
     ld hl, ivblock
