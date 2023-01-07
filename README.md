@@ -49,7 +49,7 @@ JP1 & JP2 function
 * Pin 3 to Pin 4: RS-232 D-sub connected to Rx and Tx on ATmega328P
 
 JP3
-* Connection from Z180 CKS to SCK on ATmega328P SPI interface
+* Connection from Z180 inverted CKS to SCK on ATmega328P SPI interface
 JP4
 * Connection from Z180 RXS to MISO on ATmega328P SPI interface
 JP5
@@ -93,7 +93,7 @@ The function is selected by writing to the specified port (data bits, don't care
 
 ## Testing the Z180 computer board
 
-Sofar only some very simple test are run on this board. The AVR CPU is blinking one LED and outputs
+Initially a very simple test were run on this board. The AVR CPU is blinking one LED and outputs
 text on the serial port.
 
 The Z180 CPU is blinking another LED and outputs text on serial port 0 and 1. The test program also recieves
@@ -103,3 +103,10 @@ The testprogram is copied to RAM and running from there.
 
 SPI device select and reset of AVR tested.
 Timer interrupt tested.
+
+## Monitor for the Z180 computer
+
+The monitor implements a simple menu for upload of programs, test of memory and CPU,
+SD card tests and loading and running CP/M 2.2.
+
+
